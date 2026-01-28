@@ -210,115 +210,260 @@ function displayResults(result) {
 }
 
 /**
- * Construit la carte d'un devis
+ * Construit la carte d'un devis BTP
  */
 function buildQuoteCard(title, quote, icon) {
-    return `
-        <div class="result-card">
-            <h3>${icon} ${title}</h3>
-            
-            ${quote.nom_fournisseur ? `<h4>Fournisseur</h4><p>${escapeHtml(quote.nom_fournisseur)}</p>` : ''}
-            
-            ${quote.prix_total ? `<h4>Prix Total</h4><p><strong>${escapeHtml(quote.prix_total)}</strong></p>` : ''}
-            
-            ${quote.delais ? `<h4>Délais</h4><p>${escapeHtml(quote.delais)}</p>` : ''}
-            
-            ${quote.garanties ? `<h4>Garanties</h4><p>${escapeHtml(quote.garanties)}</p>` : ''}
-            
-            ${quote.points_forts && quote.points_forts.length > 0 ? `
-                <h4>✅ Points Forts</h4>
-                <ul>
-                    ${quote.points_forts.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
-                </ul>
-            ` : ''}
-            
-            ${quote.points_faibles && quote.points_faibles.length > 0 ? `
-                <h4>⚠️ Points Faibles</h4>
-                <ul>
-                    ${quote.points_faibles.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
-                </ul>
-            ` : ''}
-        </div>
-    `;
+    let html = `<div class="result-card">
+        <h3>${icon} ${title}</h3>`;
+
+    // Fournisseur
+    if (quote.nom_fournisseur) {
+        html += `<h4>🏢 Fournisseur</h4><p><strong>${escapeHtml(quote.nom_fournisseur)}</strong></p>`;
+        if (quote.siret) html += `<p><small>SIRET: ${escapeHtml(quote.siret)}</small></p>`;
+    }
+
+    // Prix
+    if (quote.prix_total_ht || quote.prix_total_ttc || quote.prix_total) {
+        html += `<h4>💰 Prix</h4>`;
+        if (quote.prix_total_ht) html += `<p>HT: <strong>${escapeHtml(quote.prix_total_ht)}</strong></p>`;
+        if (quote.prix_total_ttc) html += `<p>TTC: <strong>${escapeHtml(quote.prix_total_ttc)}</strong></p>`;
+        if (!quote.prix_total_ht && !quote.prix_total_ttc && quote.prix_total) {
+            html += `<p><strong>${escapeHtml(quote.prix_total)}</strong></p>`;
+        }
+        if (quote.tva) html += `<p><small>TVA: ${escapeHtml(quote.tva)}</small></p>`;
+        if (quote.ratio_prix_m2) html += `<p><small> ${escapeHtml(quote.ratio_prix_m2)}</small></p>`;
+    }
+
+    // Garanties
+    if (quote.garanties) {
+        if (typeof quote.garanties === 'object') {
+            html += `<h4>🛡️ Garanties</h4>`;
+            if (quote.garanties.decennale) html += `<p>• Décennale: ${escapeHtml(quote.garanties.decennale)}</p>`;
+            if (quote.garanties.biennale) html += `<p>• Biennale: ${escapeHtml(quote.garanties.biennale)}</p>`;
+            if (quote.garanties.parfait_achevement) html += `<p>• Parfait achèvement: ${escapeHtml(quote.garanties.parfait_achevement)}</p>`;
+        } else {
+            html += `<h4>🛡️ Garanties</h4><p>${escapeHtml(quote.garanties)}</p>`;
+        }
+    }
+
+    // Assurances
+    if (quote.assurances) {
+        html += `<h4>🔒 Assurances</h4>`;
+        if (quote.assurances.rc_pro) html += `<p>• RC Pro: ${escapeHtml(quote.assurances.rc_pro)}</p>`;
+        if (quote.assurances.rc_decennale) html += `<p>• RC Décennale: ${escapeHtml(quote.assurances.rc_decennale)}</p>`;
+        if (quote.assurances.dommages_ouvrage) html += `<p>• DO: ${escapeHtml(quote.assurances.dommages_ouvrage)}</p>`;
+    }
+
+    // Qualifications
+    if (quote.qualifications && quote.qualifications.length > 0) {
+        html += `<h4>⭐ Qualifications</h4>
+            <p>${quote.qualifications.map(q => `<span class="badge">${escapeHtml(q)}</span>`).join(' ')}</p>`;
+    }
+
+    // Normes
+    if (quote.normes_respectees && quote.normes_respectees.length > 0) {
+        html += `<h4>📋 Normes</h4>
+            <p>${quote.normes_respectees.map(n => `<span class="badge">${escapeHtml(n)}</span>`).join(' ')}</p>`;
+    }
+
+    // Délais
+    if (quote.delais_execution || quote.delais) {
+        html += `<h4>⏱️ Délais</h4><p>${escapeHtml(quote.delais_execution || quote.delais)}</p>`;
+    }
+
+    // Postes de travaux
+    if (quote.postes && quote.postes.length > 0) {
+        html += `<h4>📝 Postes de Travaux</h4>
+            <div style="max-height: 300px; overflow-y: auto; margin: 10px 0;">
+                <table style="width: 100%; font-size: 0.9em;">
+                    <thead>
+                        <tr style="background: rgba(255,255,255,0.1);">
+                            <th style="padding: 5px; text-align: left;">Corps d'état</th>
+                            <th style="padding: 5px; text-align: right;">Prix</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+        quote.postes.forEach(poste => {
+            html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <td style="padding: 5px;">
+                    <strong>${escapeHtml(poste.corps_etat || 'N/A')}</strong><br>
+                    <small>${escapeHtml(poste.description || '')}</small>
+                    ${poste.quantite ? `<br><small>Qté: ${escapeHtml(poste.quantite)}</small>` : ''}
+                </td>
+                <td style="padding: 5px; text-align: right;">
+                    <strong>${escapeHtml(poste.prix_total || 'N/A')}</strong>
+                    ${poste.pourcentage_total ? `<br><small>${escapeHtml(poste.pourcentage_total)}</small>` : ''}
+                </td>
+            </tr>`;
+        });
+
+        html += `</tbody></table></div>`;
+    }
+
+    // Points forts
+    if (quote.points_forts && quote.points_forts.length > 0) {
+        html += `<h4>✅ Points Forts</h4><ul>
+            ${quote.points_forts.map(p => `<li>${escapeHtml(p)}</li>`).join('')}
+        </ul>`;
+    }
+
+    // Points faibles
+    if (quote.points_faibles && quote.points_faibles.length > 0) {
+        html += `<h4>⚠️ Points Faibles</h4><ul>
+            ${quote.points_faibles.map(p => `<li>${escapeHtml(p)}</li>`).join('')}
+        </ul>`;
+    }
+
+    html += `</div>`;
+    return html;
 }
 
 /**
- * Construit la carte de comparaison
+ * Construit la carte de comparaison BTP
  */
 function buildComparisonCard(comparaison) {
-    return `
-        <div class="result-card">
-            <h3>⚖️ Comparaison</h3>
-            
-            ${comparaison.difference_prix ? `
-                <h4>Différence de Prix</h4>
-                <p>${escapeHtml(comparaison.difference_prix)}</p>
-            ` : ''}
-            
-            ${comparaison.meilleur_rapport_qualite_prix ? `
-                <h4>Meilleur Rapport Qualité/Prix</h4>
-                <p><span class="badge badge-success">${escapeHtml(comparaison.meilleur_rapport_qualite_prix)}</span></p>
-            ` : ''}
-            
-            ${comparaison.differences_notables && comparaison.differences_notables.length > 0 ? `
-                <h4>Différences Notables</h4>
-                <ul>
-                    ${comparaison.differences_notables.map(diff => `<li>${escapeHtml(diff)}</li>`).join('')}
-                </ul>
-            ` : ''}
-            
-            ${comparaison.elements_manquants ? `
-                <h4>Éléments Manquants</h4>
-                ${comparaison.elements_manquants.devis_1 && comparaison.elements_manquants.devis_1.length > 0 ? `
-                    <p><strong>Devis 1:</strong></p>
-                    <ul>
-                        ${comparaison.elements_manquants.devis_1.map(elem => `<li>${escapeHtml(elem)}</li>`).join('')}
-                    </ul>
-                ` : ''}
-                ${comparaison.elements_manquants.devis_2 && comparaison.elements_manquants.devis_2.length > 0 ? `
-                    <p><strong>Devis 2:</strong></p>
-                    <ul>
-                        ${comparaison.elements_manquants.devis_2.map(elem => `<li>${escapeHtml(elem)}</li>`).join('')}
-                    </ul>
-                ` : ''}
-            ` : ''}
-        </div>
-    `;
+    let html = `<div class="result-card">
+        <h3>⚖️ Comparaison</h3>`;
+
+    // Différence de prix
+    if (comparaison.difference_prix_ht || comparaison.difference_prix) {
+        html += `<h4>💰 Différence de Prix</h4>
+            <p>${escapeHtml(comparaison.difference_prix_ht || comparaison.difference_prix)}</p>`;
+        if (comparaison.difference_prix_m2) {
+            html += `<p><small>Au m²: ${escapeHtml(comparaison.difference_prix_m2)}</small></p>`;
+        }
+    }
+
+    // Meilleur rapport qualité/prix
+    if (comparaison.meilleur_rapport_qualite_prix) {
+        html += `<h4>🏆 Meilleur Rapport Qualité/Prix</h4>
+            <p><span class="badge badge-success">${escapeHtml(comparaison.meilleur_rapport_qualite_prix)}</span></p>`;
+    }
+
+    // Comparaison poste par poste
+    if (comparaison.comparaison_postes && comparaison.comparaison_postes.length > 0) {
+        html += `<h4>📊 Comparaison par Corps d'État</h4>
+            <div style="max-height: 250px; overflow-y: auto; margin: 10px 0;">
+                <table style="width: 100%; font-size: 0.85em;">
+                    <thead>
+                        <tr style="background: rgba(255,255,255,0.1);">
+                            <th style="padding: 5px; text-align: left;">Corps d'état</th>
+                            <th style="padding: 5px; text-align: right;">Devis 1</th>
+                            <th style="padding: 5px; text-align: right;">Devis 2</th>
+                            <th style="padding: 5px; text-align: right;">Écart</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+        comparaison.comparaison_postes.forEach(poste => {
+            html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <td style="padding: 5px;"><small>${escapeHtml(poste.corps_etat)}</small></td>
+                <td style="padding: 5px; text-align: right;"><small>${escapeHtml(poste.devis_1_prix || 'N/A')}</small></td>
+                <td style="padding: 5px; text-align: right;"><small>${escapeHtml(poste.devis_2_prix || 'N/A')}</small></td>
+                <td style="padding: 5px; text-align: right;"><small>${escapeHtml(poste.difference || 'N/A')}</small></td>
+            </tr>`;
+        });
+
+        html += `</tbody></table></div>`;
+    }
+
+    // Alertes de conformité
+    if (comparaison.alertes_conformite && comparaison.alertes_conformite.length > 0) {
+        html += `<h4>⚠️ Alertes de Conformité</h4><ul>`;
+        comparaison.alertes_conformite.forEach(alerte => {
+            html += `<li style="color: #ff6b6b;">${escapeHtml(alerte)}</li>`;
+        });
+        html += `</ul>`;
+    }
+
+    // Différences notables
+    if (comparaison.differences_notables && comparaison.differences_notables.length > 0) {
+        html += `<h4>📌 Différences Notables</h4><ul>
+            ${comparaison.differences_notables.map(diff => `<li>${escapeHtml(diff)}</li>`).join('')}
+        </ul>`;
+    }
+
+    // Éléments manquants
+    if (comparaison.elements_manquants) {
+        html += `<h4>❌ Éléments Manquants</h4>`;
+        if (comparaison.elements_manquants.devis_1 && comparaison.elements_manquants.devis_1.length > 0) {
+            html += `<p><strong>Devis 1:</strong></p><ul>
+                ${comparaison.elements_manquants.devis_1.map(elem => `<li>${escapeHtml(elem)}</li>`).join('')}
+            </ul>`;
+        }
+        if (comparaison.elements_manquants.devis_2 && comparaison.elements_manquants.devis_2.length > 0) {
+            html += `<p><strong>Devis 2:</strong></p><ul>
+                ${comparaison.elements_manquants.devis_2.map(elem => `<li>${escapeHtml(elem)}</li>`).join('')}
+            </ul>`;
+        }
+    }
+
+    html += `</div>`;
+    return html;
 }
 
 /**
- * Construit la carte de recommandation
+ * Construit la carte de recommandation BTP
  */
 function buildRecommendationCard(recommandation) {
-    return `
-        <div class="result-card">
-            <h3>💡 Recommandation</h3>
-            
-            ${recommandation.devis_recommande ? `
-                <h4>Devis Recommandé</h4>
-                <p><span class="badge badge-success">${escapeHtml(recommandation.devis_recommande)}</span></p>
-            ` : ''}
-            
-            ${recommandation.justification ? `
-                <h4>Justification</h4>
-                <p>${escapeHtml(recommandation.justification)}</p>
-            ` : ''}
-            
-            ${recommandation.points_attention && recommandation.points_attention.length > 0 ? `
-                <h4>⚠️ Points d'Attention</h4>
-                <ul>
-                    ${recommandation.points_attention.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
-                </ul>
-            ` : ''}
-            
-            ${recommandation.questions_clarification && recommandation.questions_clarification.length > 0 ? `
-                <h4>❓ Questions à Clarifier</h4>
-                <ul>
-                    ${recommandation.questions_clarification.map(q => `<li>${escapeHtml(q)}</li>`).join('')}
-                </ul>
-            ` : ''}
-        </div>
-    `;
+    let html = `<div class="result-card">
+        <h3>💡 Recommandation</h3>`;
+
+    // Devis recommandé
+    if (recommandation.devis_recommande) {
+        html += `<h4>🏆 Devis Recommandé</h4>
+            <p><span class="badge badge-success">${escapeHtml(recommandation.devis_recommande)}</span></p>`;
+    }
+
+    // Scores
+    if (recommandation.score_devis_1 || recommandation.score_devis_2) {
+        html += `<h4>📊 Scores</h4>
+            <div style="display: flex; gap: 20px; margin: 10px 0;">`;
+        if (recommandation.score_devis_1) {
+            html += `<div style="flex: 1;">
+                <p><strong>Devis 1</strong></p>
+                <p style="font-size: 1.5em; color: #4CAF50;">${escapeHtml(recommandation.score_devis_1)}</p>
+            </div>`;
+        }
+        if (recommandation.score_devis_2) {
+            html += `<div style="flex: 1;">
+                <p><strong>Devis 2</strong></p>
+                <p style="font-size: 1.5em; color: #4CAF50;">${escapeHtml(recommandation.score_devis_2)}</p>
+            </div>`;
+        }
+        html += `</div>`;
+    }
+
+    // Justification
+    if (recommandation.justification) {
+        html += `<h4>📝 Justification</h4>
+            <p>${escapeHtml(recommandation.justification)}</p>`;
+    }
+
+    // Points de négociation
+    if (recommandation.points_negociation && recommandation.points_negociation.length > 0) {
+        html += `<h4>💬 Points de Négociation</h4><ul>
+            ${recommandation.points_negociation.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
+        </ul>`;
+    }
+
+    // Points d'attention
+    if (recommandation.points_attention && recommandation.points_attention.length > 0) {
+        html += `<h4>⚠️ Points d'Attention</h4><ul>
+            ${recommandation.points_attention.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
+        </ul>`;
+    }
+
+    // Questions de clarification
+    if (recommandation.questions_clarification && recommandation.questions_clarification.length > 0) {
+        html += `<h4>❓ Questions à Clarifier</h4><ul>
+            ${recommandation.questions_clarification.map(q => `<li>${escapeHtml(q)}</li>`).join('')}
+        </ul>`;
+    }
+
+    html += `</div>`;
+    return html;
 }
 
 /**
