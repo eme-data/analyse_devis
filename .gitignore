@@ -1,0 +1,39 @@
+# Fichiers Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Variables d'environnement
+.env
+.env.local
+.env.production
+
+# Fichiers uploadés
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Logs
+logs/
+*.log
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+.dockerignore
+
+# Fichiers temporaires
+tmp/
+temp/
+*.tmp
