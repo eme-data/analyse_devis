@@ -38,7 +38,10 @@ async function listModels() {
                 const result = await model.generateContent('Hello');
                 console.log(`✅ ${modelName} - FONCTIONNE`);
             } catch (err) {
-                console.log(`❌ ${modelName} - ${err.message.substring(0, 100)}`);
+                console.log(`❌ ${modelName}:`);
+                console.log(`   Erreur: ${err.message}`);
+                if (err.status) console.log(`   Status: ${err.status}`);
+                if (err.statusText) console.log(`   StatusText: ${err.statusText}`);
             }
         }
     }
