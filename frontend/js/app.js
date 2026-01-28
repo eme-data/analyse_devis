@@ -3,7 +3,8 @@
  */
 
 // Configuration
-const API_URL = 'http://localhost:3000/api';
+// Utiliser un chemin relatif pour profiter du reverse proxy Nginx
+const API_URL = '/api';
 
 // État de l'application
 const appState = {
