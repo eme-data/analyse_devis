@@ -162,6 +162,11 @@ function displayResults(result) {
 
     const data = result.analysis;
 
+    // Sauvegarder les données pour l'export
+    if (typeof saveAnalysisDataForExport === 'function') {
+        saveAnalysisDataForExport(result);
+    }
+
     // Construire le HTML des résultats
     let html = '';
 
