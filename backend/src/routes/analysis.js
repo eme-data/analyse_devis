@@ -95,14 +95,19 @@ router.post('/analyze', upload.fields([
             devis_2: null
         };
 
-        if (analysisResult.data.devis_1?.siret) {
-            console.log(`   Vérification SIRET Devis 1: ${analysisResult.data.devis_1.siret}`);
-            siretVerifications.devis_1 = await verifySiret(analysisResult.data.devis_1.siret);
-        }
+        try {
+            if (analysisResult.data.devis_1?.siret) {
+                console.log(`   Vérification SIRET Devis 1: ${analysisResult.data.devis_1.siret}`);
+                siretVerifications.devis_1 = await verifySiret(analysisResult.data.devis_1.siret);
+            }
 
-        if (analysisResult.data.devis_2?.siret) {
-            console.log(`   Vérification SIRET Devis 2: ${analysisResult.data.devis_2.siret}`);
-            siretVerifications.devis_2 = await verifySiret(analysisResult.data.devis_2.siret);
+            if (analysisResult.data.devis_2?.siret) {
+                console.log(`   Vérification SIRET Devis 2: ${analysisResult.data.devis_2.siret}`);
+                siretVerifications.devis_2 = await verifySiret(analysisResult.data.devis_2.siret);
+            }
+        } catch (siretError) {
+            console.error('⚠️  Erreur lors de la vérification SIRET (non bloquant):', siretError.message);
+            // On continue même si la vérification SIRET échoue
         }
 
         // Étape 4: Nettoyer les fichiers temporaires
