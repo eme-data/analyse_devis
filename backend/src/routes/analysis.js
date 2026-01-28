@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { processBothQuotes, cleanupFiles, isValidFileType, isValidFileSize } from '../services/fileProcessor.js';
 import { analyzeQuotes } from '../services/gemini.js';
+import { verifySiret } from '../services/siretVerifier.js';
 import fs from 'fs';
 
 const router = express.Router();
@@ -87,10 +88,27 @@ router.post('/analyze', upload.fields([
         console.log('🤖 Analyse avec Gemini...');
         const analysisResult = await analyzeQuotes(quote1.text, quote2.text);
 
-        // Étape 3: Nettoyer les fichiers temporaires
+        // Étape 3: Vérifier les SIRET si présents
+        console.log('🔍 Vérification des informations SIRET...');
+        const siretVerifications = {
+            devis_1: null,
+            devis_2: null
+        };
+
+        if (analysisResult.data.devis_1?.siret) {
+            console.log(`   Vérification SIRET Devis 1: ${analysisResult.data.devis_1.siret}`);
+            siretVerifications.devis_1 = await verifySiret(analysisResult.data.devis_1.siret);
+        }
+
+        if (analysisResult.data.devis_2?.siret) {
+            console.log(`   Vérification SIRET Devis 2: ${analysisResult.data.devis_2.siret}`);
+            siretVerifications.devis_2 = await verifySiret(analysisResult.data.devis_2.siret);
+        }
+
+        // Étape 4: Nettoyer les fichiers temporaires
         await cleanupFiles(uploadedFiles);
 
-        // Étape 4: Retourner les résultats
+        // Étape 5: Retourner les résultats
         console.log('✅ Analyse terminée avec succès');
 
         res.json({
@@ -109,6 +127,7 @@ router.post('/analyze', upload.fields([
                 }
             },
             analysis: analysisResult.data,
+            siretVerifications: siretVerifications,
             usage: analysisResult.usage
         });
 
