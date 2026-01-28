@@ -210,6 +210,54 @@ function displayResults(result) {
         html += buildRecommendationCard(data.recommandation);
     }
 
+    // Détection d'anomalies de prix
+    if (typeof detectPriceAnomalies === 'function' && typeof MARKET_RATIOS_BTP !== 'undefined') {
+        if (data.devis_1) {
+            const anomalies1 = detectPriceAnomalies(data.devis_1, MARKET_RATIOS_BTP);
+            if (anomalies1.length > 0) {
+                html += buildAnomaliesCard(anomalies1, 'Devis 1');
+            }
+        }
+        if (data.devis_2) {
+            const anomalies2 = detectPriceAnomalies(data.devis_2, MARKET_RATIOS_BTP);
+            if (anomalies2.length > 0) {
+                html += buildAnomaliesCard(anomalies2, 'Devis 2');
+            }
+        }
+    }
+
+    // Section graphiques
+    if (data.devis_1?.postes_travaux || data.devis_2?.postes_travaux || data.comparaison?.comparaison_postes) {
+        html += `<div class="result-card">
+            <h3>📊 Visualisations</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 20px;">`;
+
+        // Graphique répartition Devis 1
+        if (data.devis_1?.postes_travaux) {
+            html += `<div style="height: 300px;">
+                <canvas id="chartDevis1"></canvas>
+            </div>`;
+        }
+
+        // Graphique répartition Devis 2
+        if (data.devis_2?.postes_travaux) {
+            html += `<div style="height: 300px;">
+                <canvas id="chartDevis2"></canvas>
+            </div>`;
+        }
+
+        html += `</div>`;
+
+        // Graphique de comparaison
+        if (data.comparaison?.comparaison_postes) {
+            html += `<div style="height: 400px; margin-top: 20px;">
+                <canvas id="chartComparison"></canvas>
+            </div>`;
+        }
+
+        html += `</div>`;
+    }
+
     // Si erreur de parsing, afficher le texte brut
     if (data.erreur_parsing && data.analyse_brute) {
         html += `
@@ -222,6 +270,24 @@ function displayResults(result) {
 
     resultsContent.innerHTML = html;
     showSection('results');
+
+    // Créer les graphiques après le rendu HTML
+    setTimeout(() => {
+        if (typeof createTradeBreakdownChart === 'function') {
+            if (data.devis_1?.postes_travaux) {
+                createTradeBreakdownChart('chartDevis1', data.devis_1, 'Répartition Devis 1');
+            }
+            if (data.devis_2?.postes_travaux) {
+                createTradeBreakdownChart('chartDevis2', data.devis_2, 'Répartition Devis 2');
+            }
+        }
+
+        if (typeof createPriceComparisonChart === 'function') {
+            if (data.comparaison?.comparaison_postes) {
+                createPriceComparisonChart('chartComparison', data.comparaison);
+            }
+        }
+    }, 100);
 }
 
 /**
