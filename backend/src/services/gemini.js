@@ -14,8 +14,8 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
  */
 export async function analyzeQuotes(quote1Text, quote2Text) {
     try {
-        // Utiliser le modèle Gemini Flash pour une réponse rapide
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        // Utiliser le modèle Gemini Pro (plus largement disponible)
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
         // Prompt structuré pour l'analyse comparative
         const prompt = `Tu es un expert en analyse de devis commerciaux. Analyse et compare ces deux devis en détail.
@@ -121,7 +121,7 @@ export async function checkGeminiConfig() {
             return false;
         }
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
         const result = await model.generateContent('Test');
 
         return true;
