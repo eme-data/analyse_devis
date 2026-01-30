@@ -45,8 +45,178 @@ const upload = multer({
 });
 
 /**
+ * POST /api/analyze-stream
+ * Endpoint SSE pour analyser deux devis avec progression en temps réel
+ */
+router.post('/analyze-stream', upload.fields([
+    { name: 'quote1', maxCount: 1 },
+    { name: 'quote2', maxCount: 1 }
+]), async (req, res) => {
+    let uploadedFiles = [];
+
+    try {
+        console.log('📥 Nouvelle demande d\'analyse SSE reçue');
+
+        // Configuration SSE
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no'); // Désactiver le buffering nginx
+
+        // Fonction helper pour envoyer la progression
+        const sendProgress = (step, progress, message, estimatedTime = null) => {
+            const data = {
+                step,
+                progress,
+                message,
+                estimatedTime,
+                timestamp: new Date().toISOString()
+            };
+            res.write(`data: ${JSON.stringify(data)}\n\n`);
+            console.log(`   📊 Progression: ${progress}% - ${message}`);
+        };
+
+        // Vérifier que les deux fichiers sont bien présents
+        if (!req.files || !req.files.quote1 || !req.files.quote2) {
+            sendProgress('error', 0, 'Deux fichiers sont requis');
+            res.write(`data: ${JSON.stringify({ error: true, message: 'Deux fichiers sont requis' })}\n\n`);
+            res.end();
+            return;
+        }
+
+        const file1 = req.files.quote1[0];
+        const file2 = req.files.quote2[0];
+        uploadedFiles = [file1, file2];
+
+        console.log(`   Devis 1: ${file1.originalname}`);
+        console.log(`   Devis 2: ${file2.originalname}`);
+
+        // Validation supplémentaire des tailles
+        if (!isValidFileSize(file1) || !isValidFileSize(file2)) {
+            sendProgress('error', 0, 'Les fichiers ne doivent pas dépasser 10 MB');
+            res.write(`data: ${JSON.stringify({ error: true, message: 'Les fichiers ne doivent pas dépasser 10 MB' })}\n\n`);
+            await cleanupFiles(uploadedFiles);
+            res.end();
+            return;
+        }
+
+        // Étape 1: Traiter les fichiers et extraire le texte (0-30%)
+        sendProgress('upload', 5, 'Fichiers reçus', 25);
+        sendProgress('extract', 10, 'Extraction du contenu des PDF...', 20);
+
+        const { quote1, quote2 } = await processBothQuotes(file1, file2);
+
+        sendProgress('extract', 30, 'Contenu extrait avec succès', 15);
+
+        // Étape 2: Analyser avec Gemini (30-80%)
+        sendProgress('analyze', 35, 'Préparation de l\'analyse IA...', 15);
+        sendProgress('analyze', 40, 'Analyse des devis avec Gemini AI...', 12);
+
+        const analysisResult = await analyzeQuotes(quote1.text, quote2.text);
+
+        sendProgress('analyze', 75, 'Analyse IA terminée', 5);
+
+        // Étape 3: Vérifier les SIRET si présents (80-95%)
+        sendProgress('verify', 80, 'Vérification des informations...', 4);
+
+        const siretVerifications = {
+            devis_1: null,
+            devis_2: null
+        };
+
+        try {
+            // Vérifications SIRET en parallèle
+            const siretPromises = [];
+
+            if (analysisResult.data.devis_1?.siret) {
+                console.log(`   Vérification SIRET Devis 1: ${analysisResult.data.devis_1.siret}`);
+                siretPromises.push(
+                    verifySiret(analysisResult.data.devis_1.siret)
+                        .then(result => ({ devis: 'devis_1', result }))
+                );
+            }
+
+            if (analysisResult.data.devis_2?.siret) {
+                console.log(`   Vérification SIRET Devis 2: ${analysisResult.data.devis_2.siret}`);
+                siretPromises.push(
+                    verifySiret(analysisResult.data.devis_2.siret)
+                        .then(result => ({ devis: 'devis_2', result }))
+                );
+            }
+
+            if (siretPromises.length > 0) {
+                sendProgress('verify', 85, 'Vérification des SIRET...', 3);
+                const results = await Promise.all(siretPromises);
+                results.forEach(({ devis, result }) => {
+                    siretVerifications[devis] = result;
+                });
+            }
+
+            sendProgress('verify', 93, 'Vérifications terminées', 1);
+
+        } catch (siretError) {
+            console.error('⚠️  Erreur lors de la vérification SIRET (non bloquant):', siretError.message);
+            // On continue même si la vérification SIRET échoue
+        }
+
+        // Étape 4: Nettoyer les fichiers temporaires (95-98%)
+        sendProgress('cleanup', 95, 'Finalisation...', 1);
+        await cleanupFiles(uploadedFiles);
+
+        // Étape 5: Envoyer les résultats (98-100%)
+        sendProgress('complete', 98, 'Préparation des résultats...', 0);
+
+        const finalResult = {
+            success: true,
+            message: 'Analyse complétée avec succès',
+            files: {
+                quote1: {
+                    name: quote1.fileName,
+                    size: quote1.size,
+                    textLength: quote1.textLength
+                },
+                quote2: {
+                    name: quote2.fileName,
+                    size: quote2.size,
+                    textLength: quote2.textLength
+                }
+            },
+            analysis: analysisResult.data,
+            siretVerifications: siretVerifications,
+            usage: analysisResult.usage
+        };
+
+        sendProgress('complete', 100, 'Analyse terminée !', 0);
+
+        // Envoyer le résultat final
+        res.write(`data: ${JSON.stringify({ complete: true, result: finalResult })}\n\n`);
+
+        console.log('✅ Analyse SSE terminée avec succès');
+        res.end();
+
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'analyse SSE:', error);
+
+        // Nettoyer les fichiers en cas d'erreur
+        if (uploadedFiles.length > 0) {
+            await cleanupFiles(uploadedFiles);
+        }
+
+        // Envoyer l'erreur via SSE
+        const errorData = {
+            error: true,
+            message: error.message || 'Erreur lors de l\'analyse des devis',
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        };
+
+        res.write(`data: ${JSON.stringify(errorData)}\n\n`);
+        res.end();
+    }
+});
+
+/**
  * POST /api/analyze
- * Endpoint principal pour analyser deux devis
+ * Endpoint classique pour analyser deux devis (sans SSE)
  */
 router.post('/analyze', upload.fields([
     { name: 'quote1', maxCount: 1 },

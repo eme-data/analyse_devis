@@ -143,9 +143,17 @@
                 <div class="loading-card">
                     <div class="spinner"></div>
                     <h3>Analyse en cours...</h3>
-                    <p id="loadingText">Extraction du contenu des devis...</p>
-                    <div class="progress-bar">
-                        <div class="progress-fill"></div>
+                    <p id="loadingText">Préparation...</p>
+                    
+                    <!-- Barre de progression améliorée -->
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div id="progressFill" class="progress-fill" style="width: 0%;"></div>
+                        </div>
+                        <div class="progress-info">
+                            <span id="progressPercent" class="progress-percent">0%</span>
+                            <span id="progressETA" class="progress-eta">Calcul...</span>
+                        </div>
                     </div>
                 </div>
             </section>

@@ -60,7 +60,7 @@ function updateAnalyzeButton() {
 }
 
 /**
- * Lance l'analyse des devis
+ * Lance l'analyse des devis avec SSE pour progression en temps réel
  */
 async function handleAnalyze() {
     if (appState.isAnalyzing) return;
@@ -78,35 +78,71 @@ async function handleAnalyze() {
 
         // Afficher la section de chargement
         showSection('loading');
-        updateLoadingText('Envoi des fichiers...');
+        updateProgress(0, 'Préparation des fichiers...', 25);
+
+        console.log('📤 Envoi des fichiers au serveur...');
 
         // Créer le FormData
         const formData = new FormData();
         formData.append('quote1', file1);
         formData.append('quote2', file2);
 
-        console.log('📤 Envoi des fichiers au serveur...');
-
-        // Simuler une progression
-        setTimeout(() => updateLoadingText('Extraction du contenu...'), 1000);
-        setTimeout(() => updateLoadingText('Analyse avec Gemini AI...'), 2000);
-
-        // Envoyer la requête
-        const response = await fetch(`${API_URL}/analyze`, {
+        // Démarrer l'upload et obtenir un session ID temporaire
+        const uploadResponse = await fetch(`${API_URL}/analyze-stream`, {
             method: 'POST',
             body: formData
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Erreur lors de l\'analyse');
+        // On ne peut pas utiliser EventSource avec POST, donc on utilise fetch avec streaming
+        const reader = uploadResponse.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            // Décoder le chunk reçu
+            buffer += decoder.decode(value, { stream: true });
+
+            // Parser les messages SSE (format: "data: {...}\n\n")
+            const messages = buffer.split('\n\n');
+            buffer = messages.pop(); // Garder le message incomplet dans le buffer
+
+            for (const message of messages) {
+                if (!message.trim()) continue;
+
+                // Extraire le JSON après "data: "
+                const dataMatch = message.match(/^data: (.+)$/m);
+                if (!dataMatch) continue;
+
+                try {
+                    const data = JSON.parse(dataMatch[1]);
+
+                    if (data.error) {
+                        throw new Error(data.message || 'Erreur lors de l\'analyse');
+                    }
+
+                    if (data.complete) {
+                        // Analyse terminée, afficher les résultats
+                        console.log('✅ Analyse reçue:', data.result);
+                        displayResults(data.result);
+                        break;
+                    }
+
+                    // Mise à jour de la progression
+                    if (data.progress !== undefined) {
+                        updateProgress(
+                            data.progress,
+                            data.message,
+                            data.estimatedTime
+                        );
+                    }
+                } catch (parseError) {
+                    console.error('Erreur de parsing SSE:', parseError);
+                }
+            }
         }
-
-        const result = await response.json();
-        console.log('✅ Analyse reçue:', result);
-
-        // Afficher les résultats
-        displayResults(result);
 
     } catch (error) {
         console.error('❌ Erreur:', error);
@@ -115,6 +151,41 @@ async function handleAnalyze() {
     } finally {
         appState.isAnalyzing = false;
         updateAnalyzeButton();
+    }
+}
+
+/**
+ * Met à jour la barre de progression avec pourcentage et estimation de temps
+ */
+function updateProgress(progress, message, estimatedTime = null) {
+    // Mettre à jour le message
+    updateLoadingText(message);
+
+    // Mettre à jour la barre de progression
+    const progressFill = document.getElementById('progressFill');
+    const progressPercent = document.getElementById('progressPercent');
+    const progressETA = document.getElementById('progressETA');
+
+    if (progressFill) {
+        progressFill.style.width = `${progress}%`;
+    }
+
+    if (progressPercent) {
+        progressPercent.textContent = `${Math.round(progress)}%`;
+    }
+
+    if (progressETA && estimatedTime !== null) {
+        if (estimatedTime === 0) {
+            progressETA.textContent = 'Terminé !';
+        } else if (estimatedTime < 60) {
+            progressETA.textContent = `~${estimatedTime}s restantes`;
+        } else {
+            const minutes = Math.floor(estimatedTime / 60);
+            const seconds = estimatedTime % 60;
+            progressETA.textContent = `~${minutes}min ${seconds}s restantes`;
+        }
+    } else if (progressETA) {
+        progressETA.textContent = 'Calcul...';
     }
 }
 
