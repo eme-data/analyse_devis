@@ -70,7 +70,7 @@ Start-Sleep -Seconds 10
 
 Write-Host ""
 Write-Host "📋 Étape 5: Obtention du certificat SSL..." -ForegroundColor Yellow
-docker compose run --rm certbot certonly `
+docker compose -f docker-compose.https.yml run --rm certbot certonly `
     --webroot `
     --webroot-path=/var/www/certbot `
     -d $Domain `

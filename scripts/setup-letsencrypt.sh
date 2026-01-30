@@ -69,7 +69,7 @@ sleep 10
 
 echo ""
 echo "📋 Étape 5: Obtention du certificat SSL..."
-docker compose run --rm certbot certonly \
+docker compose -f docker-compose.https.yml run --rm certbot certonly \
     --webroot \
     --webroot-path=/var/www/certbot \
     -d $DOMAIN \
