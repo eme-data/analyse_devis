@@ -6,13 +6,13 @@
 # Ce script est la version Windows du script setup-letsencrypt.sh
 
 param(
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$Domain = "devis.mdoservices.fr",
     
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$Email,
     
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [int]$Staging = 0
 )
 
@@ -28,7 +28,8 @@ $StagingArg = ""
 if ($Staging -eq 1) {
     $StagingArg = "--staging"
     Write-Host "⚠️  Mode STAGING activé (certificats de test)" -ForegroundColor Yellow
-} else {
+}
+else {
     Write-Host "✅ Mode PRODUCTION (certificats réels)" -ForegroundColor Green
 }
 
@@ -37,7 +38,8 @@ Write-Host "📋 Étape 1: Vérification de Docker..." -ForegroundColor Yellow
 try {
     docker --version | Out-Null
     Write-Host "✅ Docker est installé" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "❌ Docker n'est pas installé. Veuillez installer Docker d'abord." -ForegroundColor Red
     exit 1
 }
@@ -57,18 +59,18 @@ if ($continue -ne 'o' -and $continue -ne 'O') {
 
 Write-Host ""
 Write-Host "📋 Étape 3: Arrêt des conteneurs existants..." -ForegroundColor Yellow
-docker-compose down 2>$null
+docker compose down 2>$null
 
 Write-Host ""
 Write-Host "📋 Étape 4: Démarrage de Nginx (sans SSL)..." -ForegroundColor Yellow
-docker-compose up -d frontend
+docker compose up -d frontend
 
 Write-Host "⏳ Attente du démarrage de Nginx (10s)..." -ForegroundColor Yellow
 Start-Sleep -Seconds 10
 
 Write-Host ""
 Write-Host "📋 Étape 5: Obtention du certificat SSL..." -ForegroundColor Yellow
-docker-compose run --rm certbot certonly `
+docker compose run --rm certbot certonly `
     --webroot `
     --webroot-path=/var/www/certbot `
     -d $Domain `
@@ -92,8 +94,8 @@ Write-Host "✅ Certificat obtenu avec succès!" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "📋 Étape 6: Redémarrage avec la configuration HTTPS..." -ForegroundColor Yellow
-docker-compose down
-docker-compose -f docker-compose.https.yml up -d
+docker compose down
+docker compose -f docker-compose.https.yml up -d
 
 Write-Host ""
 Write-Host "⏳ Attente du démarrage complet (15s)..." -ForegroundColor Yellow
@@ -110,7 +112,7 @@ Write-Host ""
 Write-Host "📝 Les certificats seront renouvelés automatiquement"
 Write-Host ""
 Write-Host "🔍 Pour vérifier le statut:" -ForegroundColor Yellow
-Write-Host "   docker-compose -f docker-compose.https.yml ps"
-Write-Host "   docker-compose -f docker-compose.https.yml logs -f"
+Write-Host "   docker compose -f docker-compose.https.yml ps"
+Write-Host "   docker compose -f docker-compose.https.yml logs -f"
 Write-Host ""
 Write-Host "=========================================" -ForegroundColor Cyan

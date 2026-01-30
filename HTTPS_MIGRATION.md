@@ -62,7 +62,7 @@ Si vous préférez effectuer la configuration manuellement :
 #### Étape 1: Arrêter les services existants
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 #### Étape 2: Créer les volumes pour les certificats
@@ -76,13 +76,13 @@ docker volume create analyse_devis_certbot_www
 
 ```bash
 # Temporairement, utiliser la config HTTP de base
-docker-compose up -d frontend
+docker compose up -d frontend
 ```
 
 #### Étape 4: Obtenir le certificat SSL
 
 ```bash
-docker-compose run --rm certbot certonly \
+docker compose run --rm certbot certonly \
     --webroot \
     --webroot-path=/var/www/certbot \
     -d devis.mdoservices.fr \
@@ -95,10 +95,10 @@ docker-compose run --rm certbot certonly \
 
 ```bash
 # Arrêter la configuration temporaire
-docker-compose down
+docker compose down
 
 # Démarrer avec la configuration HTTPS complète
-docker-compose -f docker-compose.https.yml up -d
+docker compose -f docker-compose.https.yml up -d
 ```
 
 ## 🔍 Vérification
@@ -106,7 +106,7 @@ docker-compose -f docker-compose.https.yml up -d
 ### Vérifier que les services sont actifs
 
 ```bash
-docker-compose -f docker-compose.https.yml ps
+docker compose -f docker-compose.https.yml ps
 ```
 
 Vous devriez voir 3 conteneurs actifs :
@@ -160,16 +160,16 @@ Si vous souhaitez renouveler manuellement :
 
 ```bash
 # Renouveler les certificats
-docker-compose -f docker-compose.https.yml exec certbot certbot renew
+docker compose -f docker-compose.https.yml exec certbot certbot renew
 
 # Recharger Nginx pour appliquer les nouveaux certificats
-docker-compose -f docker-compose.https.yml exec frontend nginx -s reload
+docker compose -f docker-compose.https.yml exec frontend nginx -s reload
 ```
 
 ### Vérifier la date d'expiration
 
 ```bash
-docker-compose -f docker-compose.https.yml exec certbot certbot certificates
+docker compose -f docker-compose.https.yml exec certbot certbot certificates
 ```
 
 ## 📊 Gestion des Services
@@ -177,31 +177,31 @@ docker-compose -f docker-compose.https.yml exec certbot certbot certificates
 ### Démarrer les services
 
 ```bash
-docker-compose -f docker-compose.https.yml up -d
+docker compose -f docker-compose.https.yml up -d
 ```
 
 ### Arrêter les services
 
 ```bash
-docker-compose -f docker-compose.https.yml down
+docker compose -f docker-compose.https.yml down
 ```
 
 ### Voir les logs
 
 ```bash
 # Tous les services
-docker-compose -f docker-compose.https.yml logs -f
+docker compose -f docker-compose.https.yml logs -f
 
 # Service spécifique
-docker-compose -f docker-compose.https.yml logs -f frontend
-docker-compose -f docker-compose.https.yml logs -f backend
-docker-compose -f docker-compose.https.yml logs -f certbot
+docker compose -f docker-compose.https.yml logs -f frontend
+docker compose -f docker-compose.https.yml logs -f backend
+docker compose -f docker-compose.https.yml logs -f certbot
 ```
 
 ### Redémarrer un service
 
 ```bash
-docker-compose -f docker-compose.https.yml restart frontend
+docker compose -f docker-compose.https.yml restart frontend
 ```
 
 ## 🔧 Dépannage
@@ -220,14 +220,14 @@ docker-compose -f docker-compose.https.yml restart frontend
 
 **Solutions**:
 1. Vérifier que Nginx écoute bien sur le port 443
-2. Vérifier les logs: `docker-compose -f docker-compose.https.yml logs frontend`
-3. Vérifier que les certificats existent: `docker-compose -f docker-compose.https.yml exec frontend ls -la /etc/letsencrypt/live/devis.mdoservices.fr/`
+2. Vérifier les logs: `docker compose -f docker-compose.https.yml logs frontend`
+3. Vérifier que les certificats existent: `docker compose -f docker-compose.https.yml exec frontend ls -la /etc/letsencrypt/live/devis.mdoservices.fr/`
 
 ### Problème: Les certificats ne se renouvellent pas
 
 **Solutions**:
-1. Vérifier les logs de Certbot: `docker-compose -f docker-compose.https.yml logs certbot`
-2. Tester le renouvellement en dry-run: `docker-compose -f docker-compose.https.yml exec certbot certbot renew --dry-run`
+1. Vérifier les logs de Certbot: `docker compose -f docker-compose.https.yml logs certbot`
+2. Tester le renouvellement en dry-run: `docker compose -f docker-compose.https.yml exec certbot certbot renew --dry-run`
 3. Vérifier que le conteneur Certbot est actif: `docker ps | grep certbot`
 
 ### Problème: Mixed Content (contenu mixte)
@@ -285,7 +285,7 @@ N'oubliez pas de tester sur différents appareils :
 
 En cas de problème :
 
-1. Vérifier les logs: `docker-compose -f docker-compose.https.yml logs -f`
+1. Vérifier les logs: `docker compose -f docker-compose.https.yml logs -f`
 2. Consulter la section Dépannage ci-dessus
 3. Vérifier la configuration DNS
 4. Tester les ports avec `telnet` ou `nc`

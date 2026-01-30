@@ -57,19 +57,19 @@ fi
 
 echo ""
 echo "📋 Étape 3: Arrêt des conteneurs existants..."
-docker-compose down 2>/dev/null || true
+docker compose down 2>/dev/null || true
 
 echo ""
 echo "📋 Étape 4: Démarrage de Nginx (sans SSL)..."
 # Démarrer Nginx temporairement avec la configuration HTTP de base
-docker-compose up -d frontend
+docker compose up -d frontend
 
 echo "⏳ Attente du démarrage de Nginx (10s)..."
 sleep 10
 
 echo ""
 echo "📋 Étape 5: Obtention du certificat SSL..."
-docker-compose run --rm certbot certonly \
+docker compose run --rm certbot certonly \
     --webroot \
     --webroot-path=/var/www/certbot \
     -d $DOMAIN \
@@ -93,8 +93,8 @@ echo "✅ Certificat obtenu avec succès!"
 
 echo ""
 echo "📋 Étape 6: Redémarrage avec la configuration HTTPS..."
-docker-compose down
-docker-compose -f docker-compose.https.yml up -d
+docker compose down
+docker compose -f docker-compose.https.yml up -d
 
 echo ""
 echo "⏳ Attente du démarrage complet (15s)..."
@@ -112,10 +112,10 @@ echo "📝 Les certificats seront renouvelés automatiquement"
 echo "   Emplacement: /var/lib/docker/volumes/analyse_devis_certbot_conf/_data"
 echo ""
 echo "🔍 Pour vérifier le statut:"
-echo "   docker-compose -f docker-compose.https.yml ps"
-echo "   docker-compose -f docker-compose.https.yml logs -f"
+echo "   docker compose -f docker-compose.https.yml ps"
+echo "   docker compose -f docker-compose.https.yml logs -f"
 echo ""
 echo "🔄 Pour renouveler manuellement:"
-echo "   docker-compose -f docker-compose.https.yml exec certbot certbot renew"
+echo "   docker compose -f docker-compose.https.yml exec certbot certbot renew"
 echo ""
 echo "========================================="

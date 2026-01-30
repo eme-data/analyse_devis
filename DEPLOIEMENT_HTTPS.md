@@ -24,13 +24,13 @@ C'est tout ! Le script va automatiquement :
 
 ```bash
 # Vérifier les services
-docker-compose -f docker-compose.https.yml ps
+docker compose -f docker-compose.https.yml ps
 
 # Tester HTTPS
 curl -I https://devis.mdoservices.fr
 
 # Voir les logs
-docker-compose -f docker-compose.https.yml logs -f
+docker compose -f docker-compose.https.yml logs -f
 ```
 
 ## 📋 Prérequis Importants
@@ -63,19 +63,19 @@ nslookup devis.mdoservices.fr
 
 ```bash
 # Démarrer en HTTPS
-docker-compose -f docker-compose.https.yml up -d
+docker compose -f docker-compose.https.yml up -d
 
 # Arrêter
-docker-compose -f docker-compose.https.yml down
+docker compose -f docker-compose.https.yml down
 
 # Redémarrer
-docker-compose -f docker-compose.https.yml restart
+docker compose -f docker-compose.https.yml restart
 
 # Renouveler les certificats manuellement
-docker-compose -f docker-compose.https.yml exec certbot certbot renew
+docker compose -f docker-compose.https.yml exec certbot certbot renew
 
 # Voir l'expiration des certificats
-docker-compose -f docker-compose.https.yml exec certbot certbot certificates
+docker compose -f docker-compose.https.yml exec certbot certbot certificates
 ```
 
 ## 🎯 Points Clés
