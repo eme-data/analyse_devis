@@ -276,7 +276,7 @@ async function exportToPDF() {
             checkAddPage(40);
             doc.setFontSize(16);
             doc.setTextColor(0, 0, 0);
-            doc.text('📋 Résumé Exécutif', 14, yPos);
+            doc.text('RESUME EXECUTIF', 14, yPos);
             yPos += 8;
 
             doc.setFontSize(10);
@@ -292,7 +292,7 @@ async function exportToPDF() {
 
             doc.setFontSize(16);
             doc.setTextColor(76, 175, 80);
-            doc.text('✅ Recommandation', 14, yPos);
+            doc.text('RECOMMANDATION', 14, yPos);
             yPos += 8;
 
             if (analysis.recommandation.devis_recommande) {
@@ -330,7 +330,7 @@ async function exportToPDF() {
 
             doc.setFontSize(16);
             doc.setTextColor(0, 0, 0);
-            doc.text('💰 Comparaison des Prix', 14, yPos);
+            doc.text('COMPARAISON DES PRIX', 14, yPos);
             yPos += 5;
 
             const priceData = [
@@ -382,7 +382,7 @@ async function exportToPDF() {
 
             doc.setFontSize(16);
             doc.setTextColor(255, 152, 0);
-            doc.text('⚠️ Anomalies de Prix Détectées', 14, yPos);
+            doc.text('ANOMALIES DE PRIX DETECTEES', 14, yPos);
             yPos += 8;
 
             const anomaliesData = [['Poste', 'Devis', 'Prix Constaté', 'Prix Marché', 'Écart', 'Sévérité']];
@@ -434,7 +434,7 @@ async function exportToPDF() {
 
             doc.setFontSize(16);
             doc.setTextColor(33, 150, 243);
-            doc.text('🏢 Vérifications SIRET', 14, yPos);
+            doc.text('VERIFICATIONS SIRET', 14, yPos);
             yPos += 8;
 
             const siretData = [['Devis', 'Entreprise', 'SIRET', 'Statut', 'Score']];
