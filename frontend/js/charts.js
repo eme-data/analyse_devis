@@ -18,10 +18,19 @@ function createTradeBreakdownChart(canvasId, devisData, title) {
     // Vérifier postes_travaux OU postes (compatibilité Gemini)
     const postes = devisData.postes_travaux || devisData.postes;
 
+    console.log('📊 Debug Chart Data:', {
+        devisData,
+        postes_travaux: devisData.postes_travaux,
+        postes: devisData.postes,
+        selectedPostes: postes
+    });
+
     if (postes && postes.length > 0) {
         postes.forEach(poste => {
             const trade = poste.corps_etat || 'Non spécifié';
             const price = parseFloat(poste.prix_total?.replace(/[^\d.-]/g, '')) || 0;
+
+            console.log('  - Poste:', trade, 'Prix:', price);
 
             if (!tradeData[trade]) {
                 tradeData[trade] = 0;
@@ -30,8 +39,12 @@ function createTradeBreakdownChart(canvasId, devisData, title) {
         });
     } else if (devisData.prix_total_ht) {
         // Si pas de détail, afficher juste le total
-        tradeData['Total'] = parseFloat(devisData.prix_total_ht.replace(/[^\d.-]/g, '')) || 0;
+        const totalPrice = parseFloat(devisData.prix_total_ht.replace(/[^\d.-]/g, '')) || 0;
+        console.log('  - Pas de postes détaillés, utilisation total HT:', totalPrice);
+        tradeData['Total'] = totalPrice;
     }
+
+    console.log('📊 Trade Data final:', tradeData);
 
     const trades = Object.keys(tradeData);
     const values = Object.values(tradeData);
