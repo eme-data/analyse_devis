@@ -7,6 +7,41 @@ dotenv.config();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 /**
+ * Fonction helper pour retry avec backoff exponentiel
+ * @param {Function} fn - Fonction async à exécuter avec retry
+ * @param {number} maxRetries - Nombre maximum de tentatives
+ * @param {string} operationName - Nom de l'opération pour les logs
+ * @returns {Promise} Résultat de la fonction
+ */
+async function retryWithBackoff(fn, maxRetries = 3, operationName = 'Gemini API call') {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🔄 ${operationName} - Tentative ${attempt}/${maxRetries}`);
+      const result = await fn();
+      if (attempt > 1) {
+        console.log(`✅ ${operationName} - Succès après ${attempt} tentative(s)`);
+      }
+      return result;
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries;
+
+      if (isLastAttempt) {
+        console.error(`❌ ${operationName} - Échec après ${maxRetries} tentatives:`, error.message);
+        throw error;
+      }
+
+      // Backoff exponentiel: 1s, 2s, 4s
+      const delayMs = Math.pow(2, attempt - 1) * 1000;
+      console.warn(`⚠️ ${operationName} - Erreur (tentative ${attempt}/${maxRetries}): ${error.message}`);
+      console.log(`⏳ Attente de ${delayMs}ms avant nouvelle tentative...`);
+
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
+
+/**
  * Analyse et compare deux devis en utilisant Gemini
  * @param {string} quote1Text - Texte du premier devis
  * @param {string} quote2Text - Texte du deuxième devis
@@ -144,8 +179,12 @@ IMPORTANT:
 Fournis UNIQUEMENT le JSON, sans texte additionnel avant ou après.
 IMPORTANT: Même si certaines informations ne sont pas présentes dans les devis, fournis la structure complète avec des valeurs null ou "Non mentionné".`;
 
-    // Générer l'analyse
-    const result = await model.generateContent(prompt);
+    // Générer l'analyse avec retry
+    const result = await retryWithBackoff(
+      async () => await model.generateContent(prompt),
+      3,
+      'Analyse 2 devis'
+    );
     const response = result.response;
     const text = response.text();
 
@@ -300,7 +339,11 @@ Fournis une analyse COMPLÈTE au format JSON suivant.
 
 Fournis UNIQUEMENT le JSON.`;
 
-    const result = await model.generateContent(prompt);
+    const result = await retryWithBackoff(
+      async () => await model.generateContent(prompt),
+      3,
+      `Analyse ${quotesTexts.length} devis`
+    );
     const response = result.response;
     const text = response.text();
 

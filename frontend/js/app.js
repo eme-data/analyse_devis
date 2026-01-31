@@ -369,23 +369,44 @@ function displayResults(result) {
         `;
     }
 
-    // Comparaison des devis
-    if (data.devis_1 && data.devis_2) {
-        html += `
-            <div class="quote-grid">
-                ${buildQuoteCard('Devis 1', data.devis_1, '1️⃣')}
-                ${buildQuoteCard('Devis 2', data.devis_2, '2️⃣')}
-            </div>
-        `;
+    // Comparaison des devis - Support dynamique pour N devis
+    const quotesData = [];
+    const quoteIcons = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+
+    // Détecter les devis dans la structure de données
+    if (data.devis && Array.isArray(data.devis)) {
+        // Mode multi-devis (3+)
+        data.devis.forEach((devis, index) => {
+            quotesData.push({
+                title: `Devis ${index + 1}`,
+                data: devis,
+                icon: quoteIcons[index] || '📄'
+            });
+        });
+    } else if (data.devis_1 && data.devis_2) {
+        // Mode classique (2 devis)
+        quotesData.push({ title: 'Devis 1', data: data.devis_1, icon: '1️⃣' });
+        quotesData.push({ title: 'Devis 2', data: data.devis_2, icon: '2️⃣' });
+    }
+
+    if (quotesData.length > 0) {
+        html += `<div class="quote-grid">`;
+        quotesData.forEach(quote => {
+            html += buildQuoteCard(quote.title, quote.data, quote.icon);
+        });
+        html += `</div>`;
 
         // Ajouter les vérifications SIRET si disponibles
         if (result.siretVerifications) {
-            if (result.siretVerifications.devis_1) {
-                html += buildSiretCard('Devis 1', result.siretVerifications.devis_1);
-            }
-            if (result.siretVerifications.devis_2) {
-                html += buildSiretCard('Devis 2', result.siretVerifications.devis_2);
-            }
+            quotesData.forEach((quote, index) => {
+                const siretKey = data.devis && Array.isArray(data.devis)
+                    ? `devis_${index + 1}`
+                    : (index === 0 ? 'devis_1' : 'devis_2');
+
+                if (result.siretVerifications[siretKey]) {
+                    html += buildSiretCard(quote.title, result.siretVerifications[siretKey]);
+                }
+            });
         }
     }
 

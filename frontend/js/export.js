@@ -376,6 +376,104 @@ async function exportToPDF() {
             yPos = doc.lastAutoTable.finalY + 10;
         }
 
+        // Ajouter les anomalies de prix si disponibles
+        if (lastAnalysisData.anomalies || (typeof window.MARKET_RATIOS_BTP !== 'undefined')) {
+            checkAddPage(60);
+
+            doc.setFontSize(16);
+            doc.setTextColor(255, 152, 0);
+            doc.text('⚠️ Anomalies de Prix Détectées', 14, yPos);
+            yPos += 8;
+
+            const anomaliesData = [['Poste', 'Devis', 'Prix Constaté', 'Prix Marché', 'Écart', 'Sévérité']];
+
+            // Anomalies devis 1
+            if (lastAnalysisData.anomalies?.devis_1) {
+                lastAnalysisData.anomalies.devis_1.forEach(anom => {
+                    anomaliesData.push([
+                        anom.tradeType || 'N/A',
+                        'Devis 1',
+                        anom.quotedPrice || '-',
+                        anom.marketRange || '-',
+                        anom.deviation || '-',
+                        anom.severity || '-'
+                    ]);
+                });
+            }
+
+            // Anomalies devis 2
+            if (lastAnalysisData.anomalies?.devis_2) {
+                lastAnalysisData.anomalies.devis_2.forEach(anom => {
+                    anomaliesData.push([
+                        anom.tradeType || 'N/A',
+                        'Devis 2',
+                        anom.quotedPrice || '-',
+                        anom.marketRange || '-',
+                        anom.deviation || '-',
+                        anom.severity || '-'
+                    ]);
+                });
+            }
+
+            if (anomaliesData.length > 1) {
+                doc.autoTable({
+                    startY: yPos,
+                    head: [anomaliesData[0]],
+                    body: anomaliesData.slice(1),
+                    theme: 'grid',
+                    headStyles: { fillColor: [255, 152, 0], textColor: 255 },
+                    styles: { fontSize: 9 }
+                });
+                yPos = doc.lastAutoTable.finalY + 10;
+            }
+        }
+
+        // Ajouter les vérifications SIRET si disponibles
+        if (lastAnalysisData.siretVerifications) {
+            checkAddPage(80);
+
+            doc.setFontSize(16);
+            doc.setTextColor(33, 150, 243);
+            doc.text('🏢 Vérifications SIRET', 14, yPos);
+            yPos += 8;
+
+            const siretData = [['Devis', 'Entreprise', 'SIRET', 'Statut', 'Score']];
+
+            if (lastAnalysisData.siretVerifications.devis_1) {
+                const s1 = lastAnalysisData.siretVerifications.devis_1;
+                siretData.push([
+                    'Devis 1',
+                    s1.denomination || 'N/A',
+                    s1.siret || 'N/A',
+                    s1.estActif ? 'Actif ✓' : 'Fermé ✗',
+                    `${s1.scoreConfiance || 0}/100`
+                ]);
+            }
+
+            if (lastAnalysisData.siretVerifications.devis_2) {
+                const s2 = lastAnalysisData.siretVerifications.devis_2;
+                siretData.push([
+                    'Devis 2',
+                    s2.denomination || 'N/A',
+                    s2.siret || 'N/A',
+                    s2.estActif ? 'Actif ✓' : 'Fermé ✗',
+                    `${s2.scoreConfiance || 0}/100`
+                ]);
+            }
+
+            if (siretData.length > 1) {
+                doc.autoTable({
+                    startY: yPos,
+                    head: [siretData[0]],
+                    body: siretData.slice(1),
+                    theme: 'grid',
+                    headStyles: { fillColor: [33, 150, 243], textColor: 255 },
+                    styles: { fontSize: 10 }
+                });
+                yPos = doc.lastAutoTable.finalY + 10;
+            }
+        }
+
         // Capture des graphiques si disponibles
         const captureChart = async (canvasId) => {
             const canvas = document.getElementById(canvasId);
