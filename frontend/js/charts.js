@@ -28,9 +28,16 @@ function createTradeBreakdownChart(canvasId, devisData, title) {
     if (postes && postes.length > 0) {
         postes.forEach(poste => {
             const trade = poste.corps_etat || 'Non spécifié';
-            const price = parseFloat(poste.prix_total?.replace(/[^\d.-]/g, '')) || 0;
 
-            console.log('  - Poste:', trade, 'Prix:', price);
+            // Gérer prix_total en tant que nombre OU string
+            let price = 0;
+            if (typeof poste.prix_total === 'number') {
+                price = poste.prix_total;
+            } else if (typeof poste.prix_total === 'string') {
+                price = parseFloat(poste.prix_total.replace(/[^\d.-]/g, '')) || 0;
+            }
+
+            console.log('  - Poste:', trade, 'Prix:', price, 'Type:', typeof poste.prix_total);
 
             if (!tradeData[trade]) {
                 tradeData[trade] = 0;
@@ -39,7 +46,12 @@ function createTradeBreakdownChart(canvasId, devisData, title) {
         });
     } else if (devisData.prix_total_ht) {
         // Si pas de détail, afficher juste le total
-        const totalPrice = parseFloat(devisData.prix_total_ht.replace(/[^\d.-]/g, '')) || 0;
+        let totalPrice = 0;
+        if (typeof devisData.prix_total_ht === 'number') {
+            totalPrice = devisData.prix_total_ht;
+        } else if (typeof devisData.prix_total_ht === 'string') {
+            totalPrice = parseFloat(devisData.prix_total_ht.replace(/[^\d.-]/g, '')) || 0;
+        }
         console.log('  - Pas de postes détaillés, utilisation total HT:', totalPrice);
         tradeData['Total'] = totalPrice;
     }
