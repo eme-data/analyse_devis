@@ -15,8 +15,11 @@ function createTradeBreakdownChart(canvasId, devisData, title) {
     // Extraire les données des postes de travaux
     const tradeData = {};
 
-    if (devisData.postes_travaux && devisData.postes_travaux.length > 0) {
-        devisData.postes_travaux.forEach(poste => {
+    // Vérifier postes_travaux OU postes (compatibilité Gemini)
+    const postes = devisData.postes_travaux || devisData.postes;
+
+    if (postes && postes.length > 0) {
+        postes.forEach(poste => {
             const trade = poste.corps_etat || 'Non spécifié';
             const price = parseFloat(poste.prix_total?.replace(/[^\d.-]/g, '')) || 0;
 
@@ -214,7 +217,15 @@ function detectPriceAnomalies(devis, marketRatios) {
 
     // Vérifier le ratio prix/m² si disponible
     if (devis.ratio_prix_m2 && marketRatios.prix_m2_moyen) {
-        const ratio = parseFloat(devis.ratio_prix_m2.replace(/[^\d.-]/g, ''));
+        // Convertir en string si nécessaire pour éviter l'erreur "replace is not a function"
+        const ratioStr = typeof devis.ratio_prix_m2 === 'string' ? devis.ratio_prix_m2 : String(devis.ratio_prix_m2);
+        const ratio = parseFloat(ratioStr.replace(/[^\d.-]/g, ''));
+
+        // Ignorer si le ratio n'est pas valide
+        if (isNaN(ratio) || ratio <= 0) {
+            return anomalies;
+        }
+
         const marketAvg = marketRatios.prix_m2_moyen;
         const deviation = ((ratio - marketAvg) / marketAvg) * 100;
 

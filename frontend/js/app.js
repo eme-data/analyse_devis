@@ -436,21 +436,24 @@ function displayResults(result) {
         }
     }
 
-    // Section graphiques
-    if (data.devis_1?.postes_travaux || data.devis_2?.postes_travaux || data.comparaison?.comparaison_postes) {
+    // Section graphiques - Support postes OU postes_travaux
+    const hasPostes1 = data.devis_1?.postes_travaux || data.devis_1?.postes;
+    const hasPostes2 = data.devis_2?.postes_travaux || data.devis_2?.postes;
+
+    if (hasPostes1 || hasPostes2 || data.comparaison?.comparaison_postes) {
         html += `<div class="result-card">
             <h3>📊 Visualisations</h3>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 20px;">`;
 
         // Graphique répartition Devis 1
-        if (data.devis_1?.postes_travaux) {
+        if (hasPostes1) {
             html += `<div style="height: 300px;">
                 <canvas id="chartDevis1"></canvas>
             </div>`;
         }
 
         // Graphique répartition Devis 2
-        if (data.devis_2?.postes_travaux) {
+        if (hasPostes2) {
             html += `<div style="height: 300px;">
                 <canvas id="chartDevis2"></canvas>
             </div>`;
@@ -484,10 +487,13 @@ function displayResults(result) {
     // Créer les graphiques après le rendu HTML
     setTimeout(() => {
         if (typeof createTradeBreakdownChart === 'function') {
-            if (data.devis_1?.postes_travaux) {
+            const hasPostes1 = data.devis_1?.postes_travaux || data.devis_1?.postes;
+            const hasPostes2 = data.devis_2?.postes_travaux || data.devis_2?.postes;
+
+            if (hasPostes1) {
                 createTradeBreakdownChart('chartDevis1', data.devis_1, 'Répartition Devis 1');
             }
-            if (data.devis_2?.postes_travaux) {
+            if (hasPostes2) {
                 createTradeBreakdownChart('chartDevis2', data.devis_2, 'Répartition Devis 2');
             }
         }
