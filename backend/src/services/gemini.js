@@ -13,12 +13,12 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
  * @returns {Promise<Object>} Résultat de l'analyse structuré
  */
 export async function analyzeQuotes(quote1Text, quote2Text) {
-    try {
-        // Utiliser le modèle Gemini 2.5 Flash (rapide et disponible)
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  try {
+    // Utiliser le modèle Gemini 2.5 Flash (rapide et disponible)
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-        // Prompt structuré pour l'analyse comparative de devis BTP/Construction
-        const prompt = `Tu es un expert en analyse de devis de CONSTRUCTION (BTP). Tu connais parfaitement :
+    // Prompt structuré pour l'analyse comparative de devis BTP/Construction
+    const prompt = `Tu es un expert en analyse de devis de CONSTRUCTION (BTP). Tu connais parfaitement :
 - Les corps d'état du bâtiment (gros œuvre, second œuvre, finitions)
 - Les normes en vigueur (RE2020, DTU, etc.)
 - Les garanties obligatoires (décennale, biennale, parfait achèvement)
@@ -144,51 +144,194 @@ IMPORTANT:
 Fournis UNIQUEMENT le JSON, sans texte additionnel avant ou après.
 IMPORTANT: Même si certaines informations ne sont pas présentes dans les devis, fournis la structure complète avec des valeurs null ou "Non mentionné".`;
 
-        // Générer l'analyse
-        const result = await model.generateContent(prompt);
-        const response = result.response;
-        const text = response.text();
+    // Générer l'analyse
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
 
-        // Parser la réponse JSON
-        let analysisData;
-        try {
-            // Nettoyer le texte pour extraire uniquement le JSON
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                analysisData = JSON.parse(jsonMatch[0]);
-            } else {
-                throw new Error('Format JSON non trouvé dans la réponse');
-            }
-        } catch (parseError) {
-            console.error('Erreur de parsing JSON:', parseError);
-            // Retourner une structure par défaut avec le texte brut
-            analysisData = {
-                resume_executif: "Analyse complétée mais format non structuré",
-                analyse_brute: text,
-                erreur_parsing: true
-            };
-        }
-
-        return {
-            success: true,
-            data: analysisData,
-            usage: result.response.usageMetadata || {}
-        };
-
-    } catch (error) {
-        console.error('Erreur lors de l\'analyse Gemini:', error);
-
-        // Gestion des erreurs spécifiques
-        if (error.message?.includes('API key')) {
-            throw new Error('Clé API Gemini invalide ou manquante. Vérifiez la variable GEMINI_API_KEY.');
-        } else if (error.message?.includes('quota')) {
-            throw new Error('Quota API Gemini dépassé. Veuillez réessayer plus tard.');
-        } else if (error.message?.includes('model')) {
-            throw new Error('Modèle Gemini non disponible. Vérifiez la configuration.');
-        }
-
-        throw new Error(`Erreur d'analyse Gemini: ${error.message}`);
+    // Parser la réponse JSON
+    let analysisData;
+    try {
+      // Nettoyer le texte pour extraire uniquement le JSON
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        analysisData = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('Format JSON non trouvé dans la réponse');
+      }
+    } catch (parseError) {
+      console.error('Erreur de parsing JSON:', parseError);
+      // Retourner une structure par défaut avec le texte brut
+      analysisData = {
+        resume_executif: "Analyse complétée mais format non structuré",
+        analyse_brute: text,
+        erreur_parsing: true
+      };
     }
+
+    return {
+      success: true,
+      data: analysisData,
+      usage: result.response.usageMetadata || {}
+    };
+
+  } catch (error) {
+    console.error('Erreur lors de l\'analyse Gemini:', error);
+
+    // Gestion des erreurs spécifiques
+    if (error.message?.includes('API key')) {
+      throw new Error('Clé API Gemini invalide ou manquante. Vérifiez la variable GEMINI_API_KEY.');
+    } else if (error.message?.includes('quota')) {
+      throw new Error('Quota API Gemini dépassé. Veuillez réessayer plus tard.');
+    } else if (error.message?.includes('model')) {
+      throw new Error('Modèle Gemini non disponible. Vérifiez la configuration.');
+    }
+
+    throw new Error(`Erreur d'analyse Gemini: ${error.message}`);
+  }
+}
+
+/**
+ * Analyse et compare plusieurs devis (3+) en utilisant Gemini
+ * @param {Array<string>} quotesTexts - Tableau de textes de devis
+ * @returns {Promise<Object>} Résultat de l'analyse structuré
+ */
+export async function analyzeMultipleQuotes(quotesTexts) {
+  try {
+    if (!quotesTexts || quotesTexts.length < 2) {
+      throw new Error('Au moins 2 devis requis pour l\'analyse');
+    }
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    // Construire le prompt pour N devis
+    let quotesSection = '';
+    quotesTexts.forEach((text, index) => {
+      quotesSection += `\nDEVIS ${index + 1}:\n${text}\n`;
+    });
+
+    const prompt = `Tu es un expert en analyse de devis de CONSTRUCTION (BTP). Analyse et compare ces ${quotesTexts.length} devis.
+
+${quotesSection}
+
+Fournis une analyse COMPLÈTE au format JSON suivant.
+
+{
+  "resume_executif": "Résumé global de la comparaison des ${quotesTexts.length} devis",
+  
+  "devis": [
+    {
+      "id": 1,
+      "nom_fournisseur": "Nom de l'entreprise",
+      "siret": "Si mentionné",
+      "prix_total_ht": "Montant HT en €",
+      "prix_total_ttc": "Montant TTC en €",
+      "tva": "Taux de TVA",
+      "surface_totale": "Surface en m² si mentionnée",
+      "ratio_prix_m2": "Prix au m²",
+      "delais_execution": "Délais",
+      "garanties": {
+        "decennale": "Oui/Non + détails",
+        "biennale": "Oui/Non",
+        "parfait_achevement": "Oui/Non"
+      },
+      "assurances": {
+        "rc_pro": "Oui/Non",
+        "rc_decennale": "Oui/Non"
+      },
+      "postes_travaux": [
+        {
+          "corps_etat": "Type de corps d'état",
+          "description": "Description",
+          "quantite": "Quantité",
+          "prix_total": "Prix en €"
+        }
+      ],
+      "qualifications": ["RGE", "Qualibat", etc.],
+      "points_forts": ["Point fort 1", etc.],
+      "points_faibles": ["Point faible 1", etc.]
+    }
+    /* Répéter pour chaque devis */
+  ],
+  
+  "comparaison": {
+    "prix_ranges": {
+      "min_ht": "Prix HT minimum avec ID devis",
+      "max_ht": "Prix HT maximum avec ID devis",
+      "ecart_total": "Écart entre min et max en € et %"
+    },
+    
+    "classement_prix": [
+      {"id": 1, "prix_ht": "...", "position": 1},
+      {"id": 2, "prix_ht": "...", "position": 2}
+    ],
+    
+    "matrice_comparaison": [
+      {
+        "corps_etat": "Gros œuvre",
+        "devis": [
+          {"id": 1, "prix": "5000€"},
+          {"id": 2, "prix": "4800€"}
+        ],
+        "analyse": "Analyse de cet écart"
+      }
+    ],
+    
+    "meilleur_rapport_qualite_prix": "ID du devis",
+    "alertes_conformite": ["Alerte 1", etc.],
+    "points_attention_communs": ["Point 1", etc.]
+  },
+  
+  "recommandation": {
+    "devis_recommande": "ID du devis recommandé",
+    "justification": "Justification détaillée",
+    "classement_global": [
+      {
+        "id": 1,
+        "position": 1,
+        "score": "8.5/10",
+        "raisons": ["Raison 1", "Raison 2"]
+      }
+    ],
+    "points_negociation": ["Point à négocier", etc.],
+    "questions_clarification": ["Question 1", etc.]
+  }
+}
+
+Fournis UNIQUEMENT le JSON.`;
+
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+
+    // Parser la réponse
+    let analysisData;
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        analysisData = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('Format JSON non trouvé');
+      }
+    } catch (parseError) {
+      console.error('Erreur parsing JSON:', parseError);
+      analysisData = {
+        resume_executif: "Analyse complétée mais format non structuré",
+        analyse_brute: text,
+        erreur_parsing: true
+      };
+    }
+
+    return {
+      success: true,
+      data: analysisData,
+      usage: result.response.usageMetadata || {}
+    };
+
+  } catch (error) {
+    console.error('Erreur analyse Gemini multi-devis:', error);
+    throw new Error(`Erreur d'analyse: ${error.message}`);
+  }
 }
 
 /**
@@ -196,17 +339,17 @@ IMPORTANT: Même si certaines informations ne sont pas présentes dans les devis
  * @returns {Promise<boolean>} True si la configuration est valide
  */
 export async function checkGeminiConfig() {
-    try {
-        if (!process.env.GEMINI_API_KEY) {
-            return false;
-        }
-
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-        const result = await model.generateContent('Test');
-
-        return true;
-    } catch (error) {
-        console.error('Configuration Gemini invalide:', error.message);
-        return false;
+  try {
+    if (!process.env.GEMINI_API_KEY) {
+      return false;
     }
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const result = await model.generateContent('Test');
+
+    return true;
+  } catch (error) {
+    console.error('Configuration Gemini invalide:', error.message);
+    return false;
+  }
 }

@@ -43,10 +43,11 @@
             <section id="uploadSection" class="upload-section">
                 <div class="section-header">
                     <h2>Déposez vos devis</h2>
-                    <p>Glissez-déposez deux devis pour les comparer automatiquement</p>
+                    <p id="quotesHint">Glissez-déposez au moins deux devis pour les comparer automatiquement (max. 10)
+                    </p>
                 </div>
 
-                <div class="dropzones">
+                <div id="dropzonesContainer" class="dropzones">
                     <!-- Dropzone 1 -->
                     <div class="dropzone" id="dropzone1" data-zone="1">
                         <div class="dropzone-content">
@@ -128,6 +129,17 @@
                     </div>
                 </div>
 
+                <!-- Bouton Ajouter un devis -->
+                <div style="display: flex; gap: 15px; align-items: center; margin-top: 20px;">
+                    <button id="addQuoteBtn" class="add-quote-btn">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 6V18M6 12H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                        Ajouter un devis
+                    </button>
+                    <span id="quotesCounter" class="quotes-counter">2 devis chargés</span>
+                </div>
+
                 <!-- Analyze Button -->
                 <button id="analyzeBtn" class="analyze-btn" disabled>
                     <svg class="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -144,7 +156,7 @@
                     <div class="spinner"></div>
                     <h3>Analyse en cours...</h3>
                     <p id="loadingText">Préparation...</p>
-                    
+
                     <!-- Barre de progression améliorée -->
                     <div class="progress-container">
                         <div class="progress-bar">
@@ -216,6 +228,7 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <!-- Visualization Library -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>

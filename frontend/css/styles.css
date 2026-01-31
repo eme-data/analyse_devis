@@ -7,26 +7,26 @@
     --color-bg-secondary: #131829;
     --color-bg-card: rgba(30, 35, 56, 0.6);
     --color-bg-card-hover: rgba(40, 46, 72, 0.7);
-    
+
     --color-primary: #6366f1;
     --color-primary-dark: #4f46e5;
     --color-primary-light: #818cf8;
-    
+
     --color-secondary: #ec4899;
     --color-accent: #14b8a6;
     --color-success: #10b981;
     --color-warning: #f59e0b;
     --color-error: #ef4444;
-    
+
     --color-text-primary: #f1f5f9;
     --color-text-secondary: #94a3b8;
     --color-text-muted: #64748b;
-    
+
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
     --gradient-secondary: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%);
     --gradient-card: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
-    
+
     /* Spacing */
     --spacing-xs: 0.5rem;
     --spacing-sm: 1rem;
@@ -34,24 +34,24 @@
     --spacing-lg: 2rem;
     --spacing-xl: 3rem;
     --spacing-2xl: 4rem;
-    
+
     /* Border Radius */
     --radius-sm: 0.5rem;
     --radius-md: 1rem;
     --radius-lg: 1.5rem;
     --radius-xl: 2rem;
-    
+
     /* Shadows */
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.2);
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.3);
     --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.3);
-    
+
     /* Transitions */
     --transition-fast: 0.2s ease;
     --transition-normal: 0.3s ease;
     --transition-slow: 0.5s ease;
-    
+
     /* Glass Effect */
     --glass-bg: rgba(30, 35, 56, 0.4);
     --glass-border: rgba(255, 255, 255, 0.1);
@@ -78,9 +78,9 @@ body {
     line-height: 1.6;
     min-height: 100vh;
     overflow-x: hidden;
-    
+
     /* Background pattern */
-    background-image: 
+    background-image:
         radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
         radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
 }
@@ -423,6 +423,39 @@ body {
     height: 20px;
 }
 
+/* Add Quote Button */
+.add-quote-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: 0.875rem 1.75rem;
+    background: var(--gradient-secondary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm);
+}
+
+.add-quote-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.add-quote-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.quotes-counter {
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
 /* ===========================
    LOADING SECTION
    =========================== */
@@ -495,12 +528,10 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(
-        90deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.2) 50%,
-        transparent 100%
-    );
+    background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.2) 50%,
+            transparent 100%);
     animation: shimmer 2s linear infinite;
 }
 
@@ -527,6 +558,7 @@ body {
     0% {
         transform: translateX(-100%);
     }
+
     100% {
         transform: translateX(100%);
     }
@@ -668,6 +700,7 @@ body {
     from {
         opacity: 0;
     }
+
     to {
         opacity: 1;
     }
@@ -678,6 +711,7 @@ body {
         opacity: 0;
         transform: translateY(-20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -689,6 +723,7 @@ body {
         opacity: 0;
         transform: translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -702,18 +737,24 @@ body {
 }
 
 @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
     }
+
     50% {
         transform: scale(1.05);
     }
 }
 
 @keyframes float {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: translateY(0);
     }
+
     50% {
         transform: translateY(-10px);
     }
@@ -723,9 +764,11 @@ body {
     0% {
         width: 0%;
     }
+
     50% {
         width: 70%;
     }
+
     100% {
         width: 100%;
     }
@@ -738,20 +781,20 @@ body {
     .logo h1 {
         font-size: 2rem;
     }
-    
+
     .section-header h2 {
         font-size: 1.5rem;
     }
-    
+
     .dropzones {
         grid-template-columns: 1fr;
     }
-    
+
     .results-section .section-header {
         flex-direction: column;
         gap: var(--spacing-md);
     }
-    
+
     .quote-grid {
         grid-template-columns: 1fr;
     }

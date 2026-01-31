@@ -2,8 +2,8 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { processBothQuotes, cleanupFiles, isValidFileType, isValidFileSize } from '../services/fileProcessor.js';
-import { analyzeQuotes } from '../services/gemini.js';
+import { processBothQuotes, processMultipleQuotes, cleanupFiles, isValidFileType, isValidFileSize } from '../services/fileProcessor.js';
+import { analyzeQuotes, analyzeMultipleQuotes } from '../services/gemini.js';
 import { verifySiret } from '../services/siretVerifier.js';
 import fs from 'fs';
 
@@ -320,6 +320,159 @@ router.post('/analyze', upload.fields([
             message: error.message || 'Erreur lors de l\'analyse des devis',
             details: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
+    }
+});
+
+/**
+ * POST /api/analyze-multi-stream
+ * Endpoint SSE pour analyser plusieurs devis (3+) avec progression en temps réel
+ */
+router.post('/analyze-multi-stream', upload.array('quotes', 10), async (req, res) => {
+    let uploadedFiles = [];
+
+    try {
+        console.log('📥 Nouvelle demande d\'analyse multi-devis SSE reçue');
+
+        // Configuration SSE
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+
+        const sendProgress = (step, progress, message, estimatedTime = null) => {
+            const data = { step, progress, message, estimatedTime, timestamp: new Date().toISOString() };
+            res.write(`data: ${JSON.stringify(data)}\n\n`);
+            console.log(`   📊 Progression: ${progress}% - ${message}`);
+        };
+
+        // Vérifier qu'au moins 2 fichiers sont présents
+        if (!req.files || req.files.length < 2) {
+            sendProgress('error', 0, 'Au moins 2 fichiers sont requis');
+            res.write(`data: ${JSON.stringify({ error: true, message: 'Au moins 2 fichiers sont requis' })}\n\n`);
+            res.end();
+            return;
+        }
+
+        // Limiter à 10 devis maximum
+        if (req.files.length > 10) {
+            sendProgress('error', 0, 'Maximum 10 devis autorisés');
+            res.write(`data: ${JSON.stringify({ error: true, message: 'Maximum 10 devis autorisés' })}\n\n`);
+            await cleanupFiles(req.files);
+            res.end();
+            return;
+        }
+
+        uploadedFiles = req.files;
+        console.log(`   Nombre de devis: ${uploadedFiles.length}`);
+        uploadedFiles.forEach((file, i) => {
+            console.log(`   Devis ${i + 1}: ${file.originalname}`);
+        });
+
+        // Validation des tailles
+        for (const file of uploadedFiles) {
+            if (!isValidFileSize(file)) {
+                sendProgress('error', 0, `Le fichier ${file.originalname} dépasse 10 MB`);
+                res.write(`data: ${JSON.stringify({ error: true, message: `Le fichier ${file.originalname} dépasse 10 MB` })}\n\n`);
+                await cleanupFiles(uploadedFiles);
+                res.end();
+                return;
+            }
+        }
+
+        // Étape 1: Traiter les fichiers (0-30%)
+        sendProgress('upload', 5, `${uploadedFiles.length} fichiers reçus`, 30);
+        sendProgress('extract', 10, 'Extraction du contenu en parallèle...', 25);
+
+        const quotesResults = await processMultipleQuotes(uploadedFiles);
+
+        sendProgress('extract', 30, 'Contenu extrait avec succès', 20);
+
+        // Étape 2: Analyser avec Gemini (30-80%)
+        sendProgress('analyze', 35, 'Préparation de l\'analyse IA...', 18);
+        sendProgress('analyze', 40, `Analyse comparative de ${uploadedFiles.length} devis...`, 15);
+
+        const quotesTexts = quotesResults.map(q => q.text);
+        const analysisResult = await analyzeMultipleQuotes(quotesTexts);
+
+        sendProgress('analyze', 75, 'Analyse IA terminée', 8);
+
+        // Étape 3: Vérifier les SIRET si présents (80-95%)
+        sendProgress('verify', 80, 'Vérification des informations...', 5);
+
+        const siretVerifications = {};
+
+        try {
+            const siretPromises = [];
+
+            if (analysisResult.data.devis && Array.isArray(analysisResult.data.devis)) {
+                analysisResult.data.devis.forEach((devis, index) => {
+                    if (devis.siret) {
+                        console.log(`   Vérification SIRET Devis ${index + 1}: ${devis.siret}`);
+                        siretPromises.push(
+                            verifySiret(devis.siret)
+                                .then(result => ({ index, result }))
+                        );
+                    }
+                });
+            }
+
+            if (siretPromises.length > 0) {
+                sendProgress('verify', 85, 'Vérification des SIRET en parallèle...', 3);
+                const results = await Promise.all(siretPromises);
+                results.forEach(({ index, result }) => {
+                    siretVerifications[`devis_${index + 1}`] = result;
+                });
+            }
+
+            sendProgress('verify', 93, 'Vérifications terminées', 2);
+
+        } catch (siretError) {
+            console.error('⚠️  Erreur SIRET (non bloquant):', siretError.message);
+        }
+
+        // Étape 4: Finalisation (95-100%)
+        sendProgress('cleanup', 95, 'Finalisation...', 1);
+        await cleanupFiles(uploadedFiles);
+
+        sendProgress('complete', 98, 'Préparation des résultats...', 0);
+
+        const finalResult = {
+            success: true,
+            message: 'Analyse multi-devis complétée avec succès',
+            quotesCount: uploadedFiles.length,
+            files: quotesResults.map((q, i) => ({
+                id: i + 1,
+                name: q.fileName,
+                size: q.size,
+                textLength: q.textLength,
+                fromCache: q.fromCache || false
+            })),
+            analysis: analysisResult.data,
+            siretVerifications: siretVerifications,
+            usage: analysisResult.usage
+        };
+
+        sendProgress('complete', 100, 'Analyse terminée !', 0);
+        res.write(`data: ${JSON.stringify({ complete: true, result: finalResult })}\n\n`);
+
+        console.log('✅ Analyse multi-devis SSE terminée avec succès');
+        res.end();
+
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'analyse multi-devis SSE:', error);
+
+        if (uploadedFiles.length > 0) {
+            await cleanupFiles(uploadedFiles);
+        }
+
+        const errorData = {
+            error: true,
+            message: error.message || 'Erreur lors de l\'analyse des devis',
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        };
+
+        res.write(`data: ${JSON.stringify(errorData)}\n\n`);
+        res.end();
     }
 });
 

@@ -222,9 +222,9 @@ function buildRecommendationSheetData(reco) {
 }
 
 /**
- * Export en PDF
+ * Export en PDF - Version améliorée avec graphiques
  */
-function exportToPDF() {
+async function exportToPDF() {
     if (!lastAnalysisData) {
         alert('Aucune analyse disponible pour l\'export');
         return;
@@ -234,56 +234,91 @@ function exportToPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const analysis = lastAnalysisData.analysis;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
 
         let yPos = 20;
+        let currentPage = 1;
 
-        // Titre
-        doc.setFontSize(20);
+        // Fonction helper pour ajouter une nouvelle page si nécessaire
+        const checkAddPage = (spaceNeeded = 40) => {
+            if (yPos + spaceNeeded > pageHeight - 20) {
+                doc.addPage();
+                currentPage++;
+                yPos = 20;
+                return true;
+            }
+            return false;
+        };
+
+        // Fonction pour ajouter pied de page
+        const addFooter = () => {
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(`Page ${currentPage}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+            doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`,
+                pageWidth - 14, pageHeight - 10, { align: 'right' });
+        };
+
+        // Page 1: Titre et Résumé
+        doc.setFontSize(24);
         doc.setTextColor(76, 175, 80);
-        doc.text('Analyse de Devis BTP', 105, yPos, { align: 'center' });
-        yPos += 10;
+        doc.text('Analyse de Devis BTP', pageWidth / 2, yPos, { align: 'center' });
+        yPos += 15;
 
         doc.setFontSize(10);
         doc.setTextColor(128, 128, 128);
-        doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 105, yPos, { align: 'center' });
+        doc.text(`Rapport d'analyse généré automatiquement`, pageWidth / 2, yPos, { align: 'center' });
         yPos += 15;
 
         // Résumé exécutif
         if (analysis.resume_executif) {
-            doc.setFontSize(14);
+            checkAddPage(40);
+            doc.setFontSize(16);
             doc.setTextColor(0, 0, 0);
-            doc.text('Résumé Exécutif', 14, yPos);
-            yPos += 7;
+            doc.text('📋 Résumé Exécutif', 14, yPos);
+            yPos += 8;
 
             doc.setFontSize(10);
-            const lines = doc.splitTextToSize(analysis.resume_executif, 180);
+            doc.setTextColor(60, 60, 60);
+            const lines = doc.splitTextToSize(analysis.resume_executif, pageWidth - 28);
             doc.text(lines, 14, yPos);
             yPos += (lines.length * 5) + 10;
         }
 
         // Recommandation
         if (analysis.recommandation) {
-            if (yPos > 250) {
-                doc.addPage();
-                yPos = 20;
-            }
+            checkAddPage(50);
 
-            doc.setFontSize(14);
-            doc.setTextColor(0, 0, 0);
-            doc.text('Recommandation', 14, yPos);
-            yPos += 7;
+            doc.setFontSize(16);
+            doc.setTextColor(76, 175, 80);
+            doc.text('✅ Recommandation', 14, yPos);
+            yPos += 8;
 
-            doc.setFontSize(12);
             if (analysis.recommandation.devis_recommande) {
-                doc.setTextColor(76, 175, 80);
+                doc.setFontSize(14);
+                doc.setTextColor(0, 150, 0);
                 doc.text(`Devis recommandé: ${analysis.recommandation.devis_recommande}`, 14, yPos);
-                yPos += 7;
+                yPos += 8;
             }
 
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
+            if (analysis.recommandation.score_devis_1 || analysis.recommandation.score_devis_2) {
+                doc.setFontSize(10);
+                doc.setTextColor(60, 60, 60);
+                if (analysis.recommandation.score_devis_1) {
+                    doc.text(`Score Devis 1: ${analysis.recommandation.score_devis_1}`, 14, yPos);
+                    yPos += 6;
+                }
+                if (analysis.recommandation.score_devis_2) {
+                    doc.text(`Score Devis 2: ${analysis.recommandation.score_devis_2}`, 14, yPos);
+                    yPos += 6;
+                }
+                yPos += 4;
+            }
+
             if (analysis.recommandation.justification) {
-                const justLines = doc.splitTextToSize(analysis.recommandation.justification, 180);
+                doc.setFontSize(10);
+                const justLines = doc.splitTextToSize(analysis.recommandation.justification, pageWidth - 28);
                 doc.text(justLines, 14, yPos);
                 yPos += (justLines.length * 5) + 10;
             }
@@ -291,34 +326,41 @@ function exportToPDF() {
 
         // Tableau comparatif des prix
         if (analysis.devis_1 && analysis.devis_2) {
-            if (yPos > 220) {
-                doc.addPage();
-                yPos = 20;
-            }
+            checkAddPage(60);
 
-            doc.setFontSize(14);
-            doc.text('Comparaison des Prix', 14, yPos);
+            doc.setFontSize(16);
+            doc.setTextColor(0, 0, 0);
+            doc.text('💰 Comparaison des Prix', 14, yPos);
             yPos += 5;
 
-            const priceData = [[
-                '',
-                analysis.devis_1.nom_fournisseur || 'Devis 1',
-                analysis.devis_2.nom_fournisseur || 'Devis 2'
-            ]];
-
-            if (analysis.devis_1.prix_total_ht || analysis.devis_2.prix_total_ht) {
-                priceData.push([
+            const priceData = [
+                [
+                    '',
+                    analysis.devis_1.nom_fournisseur || 'Devis 1',
+                    analysis.devis_2.nom_fournisseur || 'Devis 2'
+                ],
+                [
                     'Prix HT',
                     analysis.devis_1.prix_total_ht || '-',
                     analysis.devis_2.prix_total_ht || '-'
-                ]);
-            }
-
-            if (analysis.devis_1.prix_total_ttc || analysis.devis_2.prix_total_ttc) {
-                priceData.push([
+                ],
+                [
                     'Prix TTC',
                     analysis.devis_1.prix_total_ttc || '-',
                     analysis.devis_2.prix_total_ttc || '-'
+                ],
+                [
+                    'TVA',
+                    analysis.devis_1.tva || '-',
+                    analysis.devis_2.tva || '-'
+                ]
+            ];
+
+            if (analysis.devis_1.ratio_prix_m2 || analysis.devis_2.ratio_prix_m2) {
+                priceData.push([
+                    'Prix au m²',
+                    analysis.devis_1.ratio_prix_m2 || '-',
+                    analysis.devis_2.ratio_prix_m2 || '-'
                 ]);
             }
 
@@ -327,10 +369,79 @@ function exportToPDF() {
                 head: [priceData[0]],
                 body: priceData.slice(1),
                 theme: 'grid',
-                headStyles: { fillColor: [76, 175, 80] }
+                headStyles: { fillColor: [76, 175, 80], textColor: 255 },
+                styles: { fontSize: 10 }
             });
 
             yPos = doc.lastAutoTable.finalY + 10;
+        }
+
+        // Capture des graphiques si disponibles
+        const captureChart = async (canvasId) => {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return null;
+
+            try {
+                // Utiliser html2canvas pour capturer le canvas
+                const chartCanvas = await html2canvas(canvas, {
+                    backgroundColor: '#1a1a1a',
+                    scale: 2
+                });
+                return chartCanvas.toDataURL('image/png');
+            } catch (error) {
+                console.error(`Erreur capture graphique ${canvasId}:`, error);
+                return null;
+            }
+        };
+
+        // Ajouter les graphiques si disponibles
+        const chart1 = await captureChart('tradeChart1');
+        const chart2 = await captureChart('tradeChart2');
+        const compChart = await captureChart('comparisonChart');
+
+        if (chart1 || chart2 || compChart) {
+            doc.addPage();
+            currentPage++;
+            yPos = 20;
+
+            doc.setFontSize(16);
+            doc.setTextColor(0, 0, 0);
+            doc.text('📊 Visualisations Graphiques', 14, yPos);
+            yPos += 10;
+
+            if (chart1) {
+                checkAddPage(80);
+                doc.addImage(chart1, 'PNG', 14, yPos, 90, 60);
+                yPos += 65;
+            }
+
+            if (chart2) {
+                checkAddPage(80);
+                if (chart1) {
+                    doc.addImage(chart2, 'PNG', 110, yPos - 65, 90, 60);
+                } else {
+                    doc.addImage(chart2, 'PNG', 14, yPos, 90, 60);
+                    yPos += 65;
+                }
+            }
+
+            if (compChart) {
+                if (yPos > pageHeight - 100) {
+                    doc.addPage();
+                    currentPage++;
+                    yPos = 20;
+                }
+                doc.addImage(compChart, 'PNG', 14, yPos, pageWidth - 28, 70);
+                yPos += 75;
+            }
+        }
+
+        // Ajouter pieds de page sur toutes les pages
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            currentPage = i;
+            addFooter();
         }
 
         // Télécharger le PDF
