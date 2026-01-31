@@ -8,9 +8,9 @@ const API_URL = '/api';
 
 // État de l'application
 const appState = {
-    dropzone1: null,
-    dropzone2: null,
-    isAnalyzing: false
+    dropzones: [], // Array de DropZoneManagers
+    isAnalyzing: false,
+    nextDropzoneId: 3 // Pour les nouvelles dropzones (1 et 2 existent déjà)
 };
 
 // Initialisation au chargement de la page
@@ -24,18 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
 function initializeApp() {
     console.log('🚀 Initialisation de l\'application...');
 
-    // Initialiser les dropzones
-    const dropzone1Element = document.getElementById('dropzone1');
-    const dropzone2Element = document.getElementById('dropzone2');
-    const fileInput1 = document.getElementById('fileInput1');
-    const fileInput2 = document.getElementById('fileInput2');
-
-    appState.dropzone1 = new DropZoneManager(dropzone1Element, fileInput1);
-    appState.dropzone2 = new DropZoneManager(dropzone2Element, fileInput2);
-
-    // Écouter les changements de fichiers
-    dropzone1Element.addEventListener('filechange', updateAnalyzeButton);
-    dropzone2Element.addEventListener('filechange', updateAnalyzeButton);
+    // Initialiser les dropzones de base
+    initializeDropzone(1);
+    initializeDropzone(2);
 
     // Bouton d'analyse
     const analyzeBtn = document.getElementById('analyzeBtn');
@@ -45,7 +36,119 @@ function initializeApp() {
     const newAnalysisBtn = document.getElementById('newAnalysisBtn');
     newAnalysisBtn.addEventListener('click', resetApp);
 
+    // Bouton ajouter un devis
+    const addQuoteBtn = document.getElementById('addQuoteBtn');
+    addQuoteBtn.addEventListener('click', addNewDropzone);
+
+    // Mettre à jour le compteur initial
+    updateQuotesCounter();
+
     console.log('✅ Application initialisée');
+}
+
+/**
+ * Initialise une dropzone spécifique
+ */
+function initializeDropzone(id) {
+    const dropzoneElement = document.getElementById(`dropzone${id}`);
+    const fileInput = document.getElementById(`fileInput${id}`);
+
+    if (!dropzoneElement || !fileInput) {
+        console.error(`Dropzone ${id} introuvable`);
+        return;
+    }
+
+    const manager = new DropZoneManager(dropzoneElement, fileInput);
+    appState.dropzones[id] = manager;
+
+    // Écouter les changements de fichiers
+    dropzoneElement.addEventListener('filechange', () => {
+        updateAnalyzeButton();
+        updateQuotesCounter();
+    });
+}
+
+/**
+ * Ajoute une nouvelle dropzone dynamiquement
+ */
+function addNewDropzone() {
+    const container = document.getElementById('dropzonesContainer');
+    const newId = appState.nextDropzoneId;
+
+    // Limite à 10 devis
+    if (newId > 10) {
+        alert('Vous ne pouvez pas ajouter plus de 10 devis');
+        return;
+    }
+
+    // Créer le HTML de la nouvelle dropzone
+    const dropzoneHTML = `
+        <div class="dropzone" id="dropzone${newId}" data-zone="${newId}">
+            <div class="dropzone-content">
+                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M7 18C4.23858 18 2 15.7614 2 13C2 10.2386 4.23858 8 7 8C7.03002 8 7.05995 8.00033 7.08979 8.00098C7.56831 5.65897 9.62387 4 12.0721 4C14.8389 4 17.0833 6.24442 17.0833 9.01121C17.0833 9.10355 17.0808 9.19543 17.0757 9.2868C19.3299 9.67217 21 11.6428 21 14C21 16.7614 18.7614 19 16 19H7Z"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <path d="M12 12V21M12 12L9 15M12 12L15 15" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <h3>Devis ${newId}</h3>
+                <p>Glissez votre fichier ici</p>
+                <span class="file-types">PDF, JPG, PNG, TXT</span>
+                <button type="button" class="select-btn">Choisir un fichier</button>
+                <input type="file" id="fileInput${newId}" accept=".pdf,.jpg,.jpeg,.png,.txt" hidden>
+            </div>
+            <div class="file-preview" style="display: none;">
+                <div class="file-info">
+                    <svg class="file-icon" viewBox="0 0 24 24" fill="none"
+                        xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M9 12H15M9 16H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.5858C12.851 3 13.1054 3.10536 13.2929 3.29289L18.7071 8.70711C18.8946 8.89464 19 9.149 19 9.41421V19C19 20.1046 18.1046 21 17 21Z"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                    <div class="file-details">
+                        <span class="file-name"></span>
+                        <span class="file-size"></span>
+                    </div>
+                </div>
+                <button type="button" class="remove-btn">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 18L18 6M6 6L18 18" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Insérer la nouvelle dropzone
+    container.insertAdjacentHTML('beforeend', dropzoneHTML);
+
+    // Initialiser la nouvelle dropzone
+    initializeDropzone(newId);
+
+    // Incrémenter l'ID pour la prochaine
+    appState.nextDropzoneId++;
+
+    // Mettre à jour le compteur
+    updateQuotesCounter();
+
+    console.log(`✅ Dropzone ${newId} ajoutée`);
+}
+
+/**
+ * Met à jour le compteur de devis
+ */
+function updateQuotesCounter() {
+    const counter = document.getElementById('quotesCounter');
+    const loadedCount = appState.dropzones.filter(dz => dz && dz.hasFile()).length;
+    const totalSlots = appState.dropzones.filter(dz => dz !== undefined).length;
+
+    if (counter) {
+        counter.textContent = `${loadedCount}/${totalSlots} devis chargés`;
+    }
 }
 
 /**
@@ -53,10 +156,10 @@ function initializeApp() {
  */
 function updateAnalyzeButton() {
     const analyzeBtn = document.getElementById('analyzeBtn');
-    const hasFile1 = appState.dropzone1.hasFile();
-    const hasFile2 = appState.dropzone2.hasFile();
+    const loadedFiles = appState.dropzones.filter(dz => dz && dz.hasFile());
 
-    analyzeBtn.disabled = !(hasFile1 && hasFile2) || appState.isAnalyzing;
+    // Activer si au moins 2 fichiers chargés
+    analyzeBtn.disabled = loadedFiles.length < 2 || appState.isAnalyzing;
 }
 
 /**
@@ -65,11 +168,13 @@ function updateAnalyzeButton() {
 async function handleAnalyze() {
     if (appState.isAnalyzing) return;
 
-    const file1 = appState.dropzone1.getFile();
-    const file2 = appState.dropzone2.getFile();
+    // Récupérer tous les fichiers chargés
+    const files = appState.dropzones
+        .filter(dz => dz && dz.hasFile())
+        .map(dz => dz.getFile());
 
-    if (!file1 || !file2) {
-        alert('Veuillez sélectionner deux fichiers');
+    if (files.length < 2) {
+        alert('Veuillez sélectionner au moins deux fichiers');
         return;
     }
 
@@ -80,15 +185,28 @@ async function handleAnalyze() {
         showSection('loading');
         updateProgress(0, 'Préparation des fichiers...', 25);
 
-        console.log('📤 Envoi des fichiers au serveur...');
+        console.log(`📤 Envoi de ${files.length} fichiers au serveur...`);
 
         // Créer le FormData
         const formData = new FormData();
-        formData.append('quote1', file1);
-        formData.append('quote2', file2);
+
+        // Choisir l'endpoint en fonction du nombre de fichiers
+        let endpoint;
+        if (files.length === 2) {
+            // Mode classique pour 2 fichiers
+            formData.append('quote1', files[0]);
+            formData.append('quote2', files[1]);
+            endpoint = `${API_URL}/analyze-stream`;
+        } else {
+            // Mode multi-devis pour 3+ fichiers
+            files.forEach(file => formData.append('quotes', file));
+            endpoint = `${API_URL}/analyze-multi-stream`;
+        }
+
+        console.log(`🔗 Utilisation de l'endpoint: ${endpoint}`);
 
         // Démarrer l'upload et obtenir un session ID temporaire
-        const uploadResponse = await fetch(`${API_URL}/analyze-stream`, {
+        const uploadResponse = await fetch(endpoint, {
             method: 'POST',
             body: formData
         });
@@ -622,9 +740,25 @@ function buildRecommendationCard(recommandation) {
  * Réinitialise l'application
  */
 function resetApp() {
-    // Supprimer les fichiers
-    appState.dropzone1.removeFile();
-    appState.dropzone2.removeFile();
+    // Supprimer tous les fichiers des dropzones
+    appState.dropzones.forEach((dz, index) => {
+        if (dz && index >= 1 && dz.hasFile()) {
+            dz.removeFile();
+        }
+    });
+
+    // Supprimer les dropzones supplémentaires (garder seulement 1 et 2)
+    const container = document.getElementById('dropzonesContainer');
+    for (let i = 3; i < appState.nextDropzoneId; i++) {
+        const dropzoneEl = document.getElementById(`dropzone${i}`);
+        if (dropzoneEl) {
+            dropzoneEl.remove();
+        }
+        delete appState.dropzones[i];
+    }
+
+    // Réinitialiser le compteur
+    appState.nextDropzoneId = 3;
 
     // Retourner à la section upload
     showSection('upload');
@@ -632,6 +766,7 @@ function resetApp() {
     // Remettre à zéro l'état
     appState.isAnalyzing = false;
     updateAnalyzeButton();
+    updateQuotesCounter();
 
     console.log('🔄 Application réinitialisée');
 }
