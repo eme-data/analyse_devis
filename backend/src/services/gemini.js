@@ -7,6 +7,28 @@ dotenv.config();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 /**
+ * Nettoie la réponse de Gemini pour extraire le JSON valide
+ * @param {string} text - Texte brut retourné par Gemini
+ * @returns {string} Chaîne JSON nettoyée
+ */
+function cleanJson(text) {
+  if (!text) return '{}';
+
+  // 1. Enlever les marqueurs de code markdown
+  let cleaned = text.replace(/```json/g, '').replace(/```/g, '');
+
+  // 2. Trouver le premier '{' et le dernier '}'
+  const firstOpen = cleaned.indexOf('{');
+  const lastClose = cleaned.lastIndexOf('}');
+
+  if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
+    cleaned = cleaned.substring(firstOpen, lastClose + 1);
+  }
+
+  return cleaned;
+}
+
+/**
  * Fonction helper pour retry avec backoff exponentiel
  * @param {Function} fn - Fonction async à exécuter avec retry
  * @param {number} maxRetries - Nombre maximum de tentatives
@@ -14,6 +36,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
  * @returns {Promise} Résultat de la fonction
  */
 async function retryWithBackoff(fn, maxRetries = 3, operationName = 'Gemini API call') {
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`🔄 ${operationName} - Tentative ${attempt}/${maxRetries}`);
@@ -192,20 +215,23 @@ IMPORTANT: Même si certaines informations ne sont pas présentes dans les devis
     let analysisData;
     try {
       // Nettoyer le texte pour extraire uniquement le JSON
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        analysisData = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('Format JSON non trouvé dans la réponse');
-      }
+      const cleanedText = cleanJson(text);
+      analysisData = JSON.parse(cleanedText);
     } catch (parseError) {
       console.error('Erreur de parsing JSON:', parseError);
-      // Retourner une structure par défaut avec le texte brut
-      analysisData = {
-        resume_executif: "Analyse complétée mais format non structuré",
-        analyse_brute: text,
-        erreur_parsing: true
-      };
+      console.log('Texte brut reçu:', text);
+
+      // Tentative de rattrapage: chercher n'importe quelle structure JSON valide
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          analysisData = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('Format JSON non trouvé dans la réponse');
+        }
+      } catch (retryError) {
+        throw parseError; // Relancer l'erreur originale si le rattrapage échoue
+      }
     }
 
     return {
@@ -350,19 +376,26 @@ Fournis UNIQUEMENT le JSON.`;
     // Parser la réponse
     let analysisData;
     try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        analysisData = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('Format JSON non trouvé');
-      }
+      const cleanedText = cleanJson(text);
+      analysisData = JSON.parse(cleanedText);
     } catch (parseError) {
       console.error('Erreur parsing JSON:', parseError);
-      analysisData = {
-        resume_executif: "Analyse complétée mais format non structuré",
-        analyse_brute: text,
-        erreur_parsing: true
-      };
+      console.log('Texte brut reçu:', text);
+
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          analysisData = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('Format JSON non trouvé');
+        }
+      } catch (retryError) {
+        analysisData = {
+          resume_executif: "Analyse complétée mais format non structuré",
+          analyse_brute: text,
+          erreur_parsing: true
+        };
+      }
     }
 
     return {
